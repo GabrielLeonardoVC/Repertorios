@@ -1,0 +1,3207 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Repertório</title>
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-title" content="Repertório">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // Reserva: se o unpkg falhar, tenta o jsDelivr
+        if (!window.lucide) {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"><\/script>');
+        }
+    </script>
+    <script>
+        // Proteção: se nenhum carregar, o app funciona mesmo assim (só sem alguns ícones)
+        if (!window.lucide) {
+            window.lucide = { createIcons: function () {} };
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="libs/jszip.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --accent: #d4af37;
+            --bg: #ffffff;
+            --card: #f3f4f6;
+            --text: #111827;
+            --text-light: #6b7280;
+            --error: #ef4444;
+            --success: #10b981;
+            --border: rgba(0,0,0,0.08);
+        }
+
+        .dark-mode {
+            --bg: #000000;
+            --card: #1c1c1e;
+            --text: #ffffff;
+            --text-light: #8e8e93;
+            --primary: #0a84ff;
+            --border: rgba(255,255,255,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            transition: background 0.3s;
+            padding-bottom: 90px;
+            overflow-x: hidden;
+        }
+
+        /* NAVEGAÇÃO BOTTOM */
+        nav {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 75px;
+            background: rgba(var(--bg), 0.85);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        nav button {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: 0.3s;
+            width: 50%;
+        }
+
+        nav button.active {
+            color: var(--accent);
+        }
+
+        nav button i {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* PÁGINAS */
+        .page {
+            display: none;
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* CABEÇALHO */
+        .header-linha {
+            display: flex;
+            justify-content: space-between; 
+            align-items: center; /* CORREÇÃO AQUI! */
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+
+        .titulos {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .titulos h1 {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            margin: 0;
+        }
+
+        .titulos .subtitle {
+            color: var(--text-light);
+            font-weight: 500;
+            margin-bottom: 0;
+            margin-top: 5px;
+        }
+
+        /* SUBTÍTULO EDITÁVEL */
+        .subtitle-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 5px;
+        }
+
+        .subtitle-row .subtitle { margin-top: 0; }
+
+        #subtitulo-editavel {
+            outline: none;
+            border-bottom: 1px dashed transparent;
+            min-width: 40px;
+        }
+
+        #subtitulo-editavel:focus { border-bottom-color: var(--accent); }
+
+        .btn-edit-sub {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 2px;
+        }
+
+        body.modo-missa .btn-edit-sub { display: none !important; }
+
+        .top-actions-container {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap; 
+            justify-content: flex-end;
+        }
+
+        .top-action-btn {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            transition: 0.3s;
+        }
+
+        .top-action-btn:hover {
+            opacity: 0.8;
+        }
+        
+        /* CARD E CALENDÁRIO */
+        .card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .card-repertorio {
+            border-left: 5px solid var(--accent);
+            margin-top: 15px;
+        }
+        
+        .calendar-card {
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+
+        .cal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .cal-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: capitalize;
+        }
+
+        .cal-header button {
+            background: var(--border);
+            border: none;
+            cursor: pointer;
+            color: var(--text);
+            border-radius: 8px;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .cal-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+
+        .cal-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .cal-day.empty { background: transparent; }
+        .cal-day.today { border: 2px solid var(--primary); font-weight: 800; }
+        
+        .cal-day.ensaio {
+            background: var(--accent);
+            color: #fff;
+            font-weight: 800;
+            box-shadow: 0 4px 10px rgba(212, 175, 55, 0.4);
+        }
+
+        .cal-day.missa {
+            background: var(--error);
+            color: #fff;
+            font-weight: 800;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
+        }
+        
+        .cal-legend {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-light);
+            flex-wrap: wrap;
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .today-dot { background: var(--primary); }
+        .ensaio-dot { background: var(--accent); }
+        .missa-dot { background: var(--error); }
+        
+        /* LISTA DE MÚSICAS */
+        .item-musica {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+            background: var(--card);
+        }
+
+        .item-musica:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .drag-handle {
+            cursor: grab;
+            color: var(--text-light);
+            padding-right: 12px;
+            width: 28px;
+            height: 28px;
+            opacity: 0.5;
+        }
+
+        .drag-handle:active { cursor: grabbing; }
+
+        .info-musica {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        .momento {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .nome-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .nome-musica {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .badge-info {
+            background: var(--primary);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        /* ESTILOS PARA O DIAPASÃO */
+        .tom-clicavel {
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0, 0.1);
+        }
+
+        .tom-clicavel:hover {
+            transform: scale(1.1);
+            filter: brightness(1.2);
+        }
+
+        .badge-bpm {
+            background: var(--text-light);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .anotacoes-preview {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-light);
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+            margin-top: 4px;
+            background: rgba(0,0,0,0.04);
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+
+        .dark-mode .anotacoes-preview {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .actions button {
+            color: var(--text);
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .actions button:hover { opacity: 0.7; }
+        .btn-youtube { color: #ef4444 !important; }
+        
+        .cifra-logo {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .dark-mode .cifra-logo { filter: brightness(0.9); }
+        
+        .cifra-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            object-fit: cover;
+            border: 1px solid var(--border);
+            display: block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* FAB (Botão Flutuante) */
+        .fab-add {
+            position: fixed;
+            bottom: 95px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 900;
+            transition: 0.3s;
+        }
+
+        .fab-add:hover { transform: scale(1.05); }
+
+        /* MODO MISSA */
+        body.modo-missa .drag-handle { display: none !important; }
+        body.modo-missa .action-edit { display: none !important; }
+        body.modo-missa .action-add-photo { display: none !important; }
+        body.modo-missa .fab-add { display: none !important; }
+        body.modo-missa #btn-add-bottom { display: none !important; }
+        body.modo-missa .import-export-container { display: none !important; }
+        body.modo-missa #btn-missa {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* POP-UP DE LEMBRETE */
+        .reminder-popup {
+            position: fixed;
+            bottom: 170px;
+            right: 20px;
+            background: var(--card);
+            border-left: 4px solid var(--accent);
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 899;
+            animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .reminder-content { display: flex; flex-direction: column; }
+        .reminder-title { font-size: 13px; font-weight: 800; color: var(--text); }
+        .reminder-desc { font-size: 11px; font-weight: 500; color: var(--text-light); margin-top: 2px; }
+        .reminder-close { background: none; border: none; color: var(--text-light); cursor: pointer; margin-left: auto; }
+        
+        /* MODAIS */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 5000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--bg);
+            padding: 25px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            text-align: left;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content.center { text-align: center; }
+        
+        .modal-content h2 {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+        
+        .form-row { display: flex; gap: 10px; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; flex: 1; }
+        
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--card);
+            color: var(--text);
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            appearance: none; 
+        }
+
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        
+        .photo-edit-area {
+            background: var(--card);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        #edit-photo-preview {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: none;
+            margin-bottom: 5px;
+        }
+
+        .photo-status {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+
+        .photo-status.has-photo { color: var(--success); }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            width: 100%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-secondary {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            width: 100%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-danger {
+            background: #fee2e2;
+            color: var(--error);
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 5px;
+        }
+
+        .dark-mode .btn-danger { background: rgba(239, 68, 68, 0.2); }
+        input[type="file"] { display: none; }
+        .sortable-ghost { opacity: 0.4; background: var(--bg); }
+
+        /* BACKUP LAYOUT */
+        .import-export-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+            padding-bottom: 20px;
+        }
+
+        .btn-backup {
+            background: transparent;
+            color: var(--text-light);
+            border: 1px dashed var(--border);
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-backup:hover { background: var(--border); }
+        .btn-backup i { width: 18px; }
+
+        /* TELA CHEIA E SIDEBAR FIXA PARA CIFRAS */
+        #fullscreen-photo {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 9999;
+            flex-direction: row; 
+        }
+
+        .fs-image-area {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            text-align: center;
+            scroll-behavior: smooth;
+            position: relative;
+            padding: 15px;
+            background: #000;
+        }
+
+        #fullscreen-img {
+            width: 100%;
+            height: auto;
+            min-height: 100%;
+            object-fit: contain;
+            display: block;
+            max-width: 100%;
+        }
+
+        .fs-sidebar {
+            flex: 0 0 320px;
+            width: 320px;
+            min-width: 320px;
+            max-width: 320px;
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            z-index: 10000;
+            overflow-y: auto;
+        }
+
+        .fs-controls-top {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .fs-controls-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex-grow: 1;
+        }
+
+        .fs-btn-side {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .fs-close { background: var(--border); color: var(--text); flex: 1; }
+        .fs-trash { background: rgba(239, 68, 68, 0.1); color: var(--error); flex: 1; }
+        
+        .fs-nav-btn {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            flex: 1;
+        }
+
+        .fs-nav-btn:hover {
+            background: var(--border);
+        }
+
+        .sidebar-box {
+            background: var(--bg);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+
+        .sidebar-box label {
+            display: block;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+        
+        #speed-slider {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .fs-scroll {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
+        }
+
+        .fs-scroll.playing {
+            background: var(--success);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+        }
+        
+        /* METRÔNOMO MANUAL FIXO NA SIDEBAR */
+        .fs-metronome {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .fs-metronome.playing {
+            background: var(--accent);
+            color: #fff;
+            animation: pulse 1s infinite alternate;
+        }
+
+        .bpm-input {
+            width: 80px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            font-weight: 700;
+            font-size: 16px;
+            text-align: center;
+            outline: none;
+        }
+
+        /* YOUTUBE FIXO NA SIDEBAR */
+        #yt-sidebar-player {
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .yt-header {
+            background: var(--border);
+            padding: 10px 15px;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .yt-empty-msg {
+            padding: 25px 15px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.02); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            #fullscreen-photo {
+                flex-direction: column;
+            }
+            .fs-sidebar {
+                flex: 0 0 auto;
+                width: 100%;
+                min-width: 0;
+                max-width: none;
+                height: auto;
+                padding: 15px;
+                flex-direction: column;
+                border-right: none;
+                border-top: 1px solid var(--border);
+                gap: 10px;
+                order: 2; 
+                max-height: 45vh; 
+            }
+            .fs-controls-top {
+                margin-bottom: 5px;
+            }
+            .fs-image-area {
+                max-height: 55vh;
+            }
+        }
+
+        /* MODO IMPRESSÃO (PDF) */
+        @media print {
+            body, body.dark-mode { 
+                background: #ffffff !important; 
+                color: #000000 !important; 
+                padding: 0; margin: 0; 
+            }
+            nav, .fab-add, .top-actions-container, #btn-add-bottom, .actions, .drag-handle, .import-export-container, .reminder-popup, .btn-edit-sub { 
+                display: none !important; 
+            }
+            #calendario { display: none !important; }
+            #repertorio { display: block !important; padding: 0; margin: 0; }
+            .card { border: none !important; box-shadow: none !important; padding: 0 !important; background: transparent !important; }
+            .item-musica { 
+                border-bottom: 1px solid #ccc !important; 
+                page-break-inside: avoid; 
+                padding: 10px 0 !important;
+                background: transparent !important;
+            }
+            .badge-info, .badge-bpm { 
+                border: 1px solid #000 !important; 
+                background: transparent !important; 
+                color: #000 !important; 
+            }
+            .anotacoes-preview {
+                background: transparent !important;
+                border: 1px dashed #ccc !important;
+                color: #000 !important;
+            }
+            .titulos h1, .titulos .subtitle { text-align: center; }
+            .subtitle-row { justify-content: center; }
+            .momento { color: #000 !important; }
+        }
+
+        body.modo-missa .evento-edit-only { display: none !important; }
+
+        /* --- NOVOS ESTILOS: CANETA VIRTUAL E FERRAMENTAS --- */
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            cursor: crosshair;
+            touch-action: none; /* Evita que a tela role enquanto desenha */
+        }
+        
+        #canvas-wrapper {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+
+        .draw-tools {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .btn-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            cursor: pointer;
+        }
+        .btn-color.active {
+            border: 3px solid var(--text);
+            transform: scale(1.1);
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .tool-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        /* --- OPÇÃO 3 e 4: STATUS DO ENSAIO E DIVISÃO DE VOZES --- */
+        .status-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .status-nova { background-color: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.6); } /* Vermelho */
+        .status-revisar { background-color: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); } /* Amarelo */
+        .status-pronta { background-color: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); } /* Verde */
+
+        .badge-vozes {
+            background: #6366f1; /* Cor Indigo/Roxa */
+            color: white;
+            padding: 3px 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            margin-left: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .edit-anexo-preview { width: 100%; min-height: 90px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+        .edit-anexo-preview img { display: none; max-width: 100%; width: 180px; max-height: 180px; object-fit: contain; border-radius: 10px; border: 1px solid var(--border); background: #fff; }
+        .edit-file-preview-card { width: 100%; display:flex; align-items:center; gap:12px; padding:13px; border-radius:12px; background:var(--bg); border:1px solid var(--border); text-align:left; }
+        .edit-file-preview-icon { width:48px; height:48px; flex:0 0 48px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:rgba(37,99,235,.12); color:var(--primary); }
+        .edit-file-preview-meta { min-width:0; display:flex; flex-direction:column; gap:3px; }
+        .edit-file-preview-meta strong { font-size:13px; overflow-wrap:anywhere; }
+        .edit-file-preview-meta span { color:var(--text-light); font-size:11px; }
+        .anexo-mini-icon { width:30px; height:30px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; background:rgba(37,99,235,.12); color:var(--primary); font-size:9px; font-weight:800; flex-shrink:0; }
+        .pdf-page-wrap { width:100%; display:flex; justify-content:center; margin:0 auto 18px; }
+        .pdf-page-canvas { display:block; width:100%; max-width:850px; height:auto; background:#fff; box-shadow:0 6px 22px rgba(0,0,0,.12); }
+        .document-error { width:min(100%,700px); margin:30px auto; padding:25px; border-radius:16px; background:var(--card); border:1px solid var(--border); text-align:center; }
+
+        /* VISUALIZADOR DE DOCUMENTOS — usa a mesma área de rolagem do acompanhamento */
+        #fullscreen-doc-viewer {
+            width: min(100%, 920px);
+            max-width: 100%;
+            min-width: 0;
+            margin: 0 auto;
+            padding: 20px 10px 60px;
+        }
+
+        .fullscreen-doc-head {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            margin: 0 auto 15px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.94);
+            color: #111827;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+            backdrop-filter: blur(8px);
+        }
+
+        .fullscreen-doc-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #eef2ff;
+            color: #4f46e5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .fullscreen-doc-meta {
+            min-width: 0;
+            flex: 1;
+            text-align: left;
+        }
+
+        .fullscreen-doc-meta strong {
+            display: block;
+            font-size: 13px;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .fullscreen-doc-meta span {
+            display: block;
+            margin-top: 3px;
+            color: #6b7280;
+            font-size: 11px;
+        }
+
+        .fullscreen-doc-download {
+            flex: 0 0 auto;
+            width: auto;
+            min-width: 0;
+            padding: 10px 12px;
+            text-decoration: none;
+        }
+
+        .fullscreen-doc-page {
+            background: #ffffff;
+            color: #111827;
+            width: min(100%, 850px);
+            min-height: 65vh;
+            margin: 0 auto;
+            padding: 42px 48px 60px;
+            border-radius: 4px;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.16);
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+
+        .fullscreen-doc-page p {
+            margin: 0 0 0.8em;
+            line-height: 1.55;
+        }
+
+        .fullscreen-doc-page h1,
+        .fullscreen-doc-page h2,
+        .fullscreen-doc-page h3,
+        .fullscreen-doc-page h4 {
+            margin: 0 0 0.8em;
+        }
+
+        .fullscreen-doc-page ul,
+        .fullscreen-doc-page ol {
+            padding-left: 1.5em;
+            margin-bottom: 0.8em;
+        }
+
+        .fullscreen-doc-page img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .fullscreen-doc-page table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+        }
+
+        .fullscreen-doc-page td,
+        .fullscreen-doc-page th {
+            border: 1px solid #d1d5db;
+            padding: 6px 8px;
+        }
+
+        .fullscreen-doc-page pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            margin: 0;
+        }
+
+        .fullscreen-doc-native {
+            display: none;
+            width: 100%;
+            min-height: 75vh;
+            border: 0;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .fullscreen-doc-fallback {
+            width: min(100%, 700px);
+            margin: 40px auto;
+            padding: 28px;
+            border-radius: 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            #fullscreen-doc-viewer {
+                padding: 10px 4px 40px;
+            }
+            .fullscreen-doc-head {
+                padding: 9px;
+            }
+            .fullscreen-doc-page {
+                padding: 28px 20px 45px;
+                min-height: 70vh;
+            }
+            .fullscreen-doc-download {
+                padding: 9px 10px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+<input type="file" id="file-upload-gallery" accept="image/*,application/pdf,.pdf,.doc,.DOC,.docx,.DOCX,.docm,.dot,.dotx,.odt,.ODT,.fodt,.ott,.ods,.ots,.odp,.otp,.rtf,.txt,.md,.csv,.log" onchange="handleFileUpload(event)">
+<input type="file" id="file-upload-camera" accept="image/*" capture="environment" onchange="handleFileUpload(event)">
+<input type="file" id="import-file" accept=".json" style="display: none;" onchange="importarRepertorio(event)">
+
+<div id="photo-choice-modal" class="modal-overlay">
+    <div class="modal-content center" style="max-width: 320px;">
+        <h2>Adicionar Cifra</h2>
+        <p style="color: var(--text-light); margin-bottom: 20px; font-size: 14px;">Como deseja anexar a cifra desta música?</p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn-primary" onclick="triggerCamera('direct')"><i data-lucide="camera" style="width: 18px; margin-right: 8px;"></i> Tirar Foto na Hora</button>
+            <button class="btn-secondary" onclick="triggerGallery('direct')"><i data-lucide="image" style="width: 18px; margin-right: 8px;"></i> Galeria ou documento</button>
+            <button class="btn-secondary" style="border: none; background: transparent; margin-top: 5px; padding: 10px;" onclick="closeModal('photo-choice-modal')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="edit-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>Editar Música</h2>
+        
+        <div class="photo-edit-area">
+            <div id="edit-anexo-preview" class="edit-anexo-preview" aria-live="polite">
+                <img id="edit-photo-preview" src="" alt="Prévia da cifra">
+                <div id="edit-file-preview-card" class="edit-file-preview-card" style="display:none;">
+                    <div id="edit-file-preview-icon" class="edit-file-preview-icon"><i data-lucide="file-text"></i></div>
+                    <div class="edit-file-preview-meta">
+                        <strong id="edit-file-preview-name">Arquivo anexado</strong>
+                        <span id="edit-file-preview-type">Documento</span>
+                    </div>
+                </div>
+            </div>
+            <span class="photo-status" id="edit-photo-status">Nenhum anexo</span>
+            <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                <div style="display: flex; gap: 8px; width: 100%;">
+                    <button class="btn-secondary" style="padding: 10px; font-size: 12px;" onclick="triggerCamera('edit')"><i data-lucide="camera" style="width: 16px; margin-right: 5px"></i>Foto</button>
+                    <button class="btn-secondary" style="padding: 10px; font-size: 12px;" onclick="triggerGallery('edit')"><i data-lucide="image" style="width: 16px; margin-right: 5px"></i>Galeria / documento</button>
+                </div>
+                <button class="btn-danger" id="edit-remove-photo" style="display: none; padding: 10px;" onclick="removePhotoModal()">Remover Anexo</button>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label>Momento da Missa</label>
+                <input type="text" id="edit-momento" placeholder="Ex: Entrada">
+            </div>
+            
+            <div class="form-group" style="flex: 1;">
+                <label>Tom</label>
+                <select id="edit-tom">
+                    <option value="">--</option>
+                    <optgroup label="Maiores">
+                        <option value="C">C</option><option value="C#">C#</option><option value="Db">Db</option><option value="D">D</option><option value="D#">D#</option><option value="Eb">Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F#</option><option value="Gb">Gb</option><option value="G">G</option><option value="G#">G#</option><option value="Ab">Ab</option><option value="A">A</option><option value="A#">A#</option><option value="Bb">Bb</option><option value="B">B</option>
+                    </optgroup>
+                    <optgroup label="Menores">
+                        <option value="Cm">Cm</option><option value="C#m">C#m</option><option value="Dbm">Dbm</option><option value="Dm">Dm</option><option value="D#m">D#m</option><option value="Ebm">Ebm</option><option value="Em">Em</option><option value="Fm">Fm</option><option value="F#m">F#m</option><option value="Gbm">Gbm</option><option value="Gm">Gm</option><option value="G#m">G#m</option><option value="Abm">Abm</option><option value="Am">Am</option><option value="A#m">A#m</option><option value="Bbm">Bbm</option><option value="Bm">Bm</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+                <label>BPM</label>
+                <input type="number" id="edit-bpm" placeholder="Ex: 68">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Nome da Música</label>
+            <input type="text" id="edit-nome" placeholder="Nome da música">
+        </div>
+        <div class="form-group">
+            <label>Anotações do Ensaio</label>
+            <textarea id="edit-anotacoes" placeholder="Ex: Violão começa sozinho..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Link do YouTube</label>
+            <input type="url" id="edit-yt" placeholder="https://youtube.com/...">
+        </div>
+        <div class="form-group">
+            <label>Link do Cifra Club</label>
+            <input type="url" id="edit-cifra" placeholder="Deixe em branco para busca automática">
+        </div>
+        
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeModal('edit-modal')">Cancelar</button>
+            <button class="btn-primary" onclick="saveEdit()">Salvar Tudo</button>
+        </div>
+        <button class="btn-danger" id="btn-excluir-musica" onclick="excluirMusica()"><i data-lucide="trash-2" style="width: 16px;"></i> Excluir Esta Música</button>
+    </div>
+</div>
+
+<div id="fullscreen-photo">
+    <div class="fs-sidebar">
+        <div class="fs-controls-top">
+            <button class="fs-btn-side fs-nav-btn" onclick="navegarCifra(-1)" title="Cifra Anterior"><i data-lucide="chevron-left"></i></button>
+            <button class="fs-btn-side fs-close" onclick="closeFullscreen()" title="Fechar Cifra"><i data-lucide="x"></i></button>
+            <button class="fs-btn-side fs-nav-btn" onclick="navegarCifra(1)" title="Próxima Cifra"><i data-lucide="chevron-right"></i></button>
+            <button class="fs-btn-side fs-trash" style="flex: 0.5; padding: 12px 0;" onclick="removePhotoFullscreen()" title="Apagar anexo da cifra"><i data-lucide="trash-2"></i></button>
+            <button class="fs-btn-side fs-nav-btn" id="btn-draw-toggle" onclick="toggleDrawingMode()" title="Anotar na Cifra"><i data-lucide="pen-tool"></i></button>
+        </div>
+        
+        <div class="fs-controls-bottom">
+            <div class="sidebar-box">
+                <label for="speed-slider">Velocidade de Rolagem: <span id="speed-value">2x</span></label>
+                <input type="range" id="speed-slider" min="0.25" max="10" step="0.25" value="2">
+                <button class="fs-btn-side fs-scroll" id="btn-autoscroll" onclick="toggleAutoScroll()">
+                    <i data-lucide="play" id="icon-scroll"></i> Iniciar Rolagem
+                </button>
+            </div>
+            
+            <div class="sidebar-box">
+                <label>Metrônomo Manual (BPM)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="manual-bpm-input" class="bpm-input" placeholder="Ex: 80">
+                    <button class="fs-btn-side fs-metronome" id="btn-metronome-play" onclick="toggleManualMetronome()" style="flex-grow: 1;">
+                        <i data-lucide="play" style="width: 18px;"></i> Tocar
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-box" id="draw-controls" style="display: none;">
+                <label>Caneta (Rabiscar Cifra)</label>
+                <div class="draw-tools">
+                    <button class="btn-color active" style="background: red;" onclick="changeColor('red', this)"></button>
+                    <button class="btn-color" style="background: blue;" onclick="changeColor('blue', this)"></button>
+                    <button class="btn-color" style="background: black;" onclick="changeColor('black', this)"></button>
+                    <button class="btn-color" style="background: yellow;" onclick="changeColor('yellow', this)"></button>
+                </div>
+                <div class="draw-tools" style="margin-top: 10px;">
+                    <button class="btn-secondary" style="flex: 1; padding: 8px; font-size: 12px;" onclick="clearCanvas()">Limpar</button>
+                    <button class="btn-primary" style="flex: 1; padding: 8px; font-size: 12px;" onclick="saveCanvasToImage()">Salvar</button>
+                </div>
+            </div>
+
+            <div class="sidebar-box" id="yt-sidebar-player">
+                <div class="yt-header"><span style="color: var(--error); display: flex;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg></span> Ouvir Música</div>
+                <iframe id="fs-yt-iframe" width="100%" height="160" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="display: none;"></iframe>
+                <div id="yt-empty-msg" class="yt-empty-msg">Nenhum vídeo do YouTube associado a esta música.</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="fs-image-area" id="fs-image-container">
+        <div id="canvas-wrapper">
+            <img id="fullscreen-img" src="" alt="Cifra">
+            <canvas id="draw-canvas" class="canvas-overlay" style="display: none;"></canvas>
+        </div>
+        <div id="fullscreen-doc-viewer" style="display: none;">
+            <div class="fullscreen-doc-head">
+                <div class="fullscreen-doc-icon"><i data-lucide="file-text" style="width: 21px; height: 21px;"></i></div>
+                <div class="fullscreen-doc-meta">
+                    <strong id="fullscreen-doc-name">Documento anexado</strong>
+                    <span id="fullscreen-doc-type">Documento</span>
+                </div>
+                <a id="fullscreen-doc-download" class="btn-primary fullscreen-doc-download" href="#" download title="Baixar documento">
+                    <i data-lucide="download" style="width: 17px; height: 17px;"></i>
+                </a>
+            </div>
+            <div id="fullscreen-doc-loading" class="fullscreen-doc-fallback" style="display: none;">
+                <i data-lucide="loader-circle" style="width: 30px; height: 30px; animation: spin 1s linear infinite;"></i>
+                <p style="margin-top: 12px; font-weight: 700;">Abrindo documento...</p>
+            </div>
+            <div id="fullscreen-doc-content" class="fullscreen-doc-page" style="display: none;"></div>
+            <iframe id="fullscreen-doc-native" class="fullscreen-doc-native" title="Visualização do documento"></iframe>
+            <div id="fullscreen-doc-fallback" class="fullscreen-doc-fallback" style="display: none;">
+                <i data-lucide="file-warning" style="width: 34px; height: 34px;"></i>
+                <h3 style="margin: 12px 0 8px;">Visualização não disponível neste navegador</h3>
+                <p style="color: var(--text-light); font-size: 13px; margin-bottom: 16px;">
+                    O documento continua anexado. Use o botão de download para abrir no Word, LibreOffice ou outro leitor compatível.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="reminder-popup" class="reminder-popup">
+    <i data-lucide="bell-ring" style="color: var(--accent); width: 24px; height: 24px;"></i>
+    <div class="reminder-content">
+        <span class="reminder-title" id="reminder-days">Calculando...</span>
+        <span class="reminder-desc">Missa de Lava Pés (02/04/2026)</span>
+    </div>
+    <button class="reminder-close" onclick="closeReminder()"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
+</div>
+
+<div id="ferramentas-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+        <h2>🛠️ Ferramentas Rápidas</h2>
+        
+        <div class="tools-grid">
+            <div class="tool-card">
+                <i data-lucide="search" style="color: var(--accent); margin-bottom: 10px; width: 24px; height: 24px;"></i>
+                <h4 style="margin-bottom: 10px; font-size: 13px;">Busca de Emergência</h4>
+                <input type="text" id="busca-emergencia" placeholder="Nome da música..." style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 8px; font-size: 12px;">
+                <button class="btn-primary" style="width: 100%; padding: 8px; font-size: 11px; margin-bottom: 5px;" onclick="fazerBuscaEmergencia('cifra')">CifraClub</button>
+                <button class="btn-secondary" style="width: 100%; padding: 8px; font-size: 11px;" onclick="fazerBuscaEmergencia('youtube')">YouTube</button>
+            </div>
+
+            <div class="tool-card">
+                <i data-lucide="arrow-up-down" style="color: var(--success); margin-bottom: 10px; width: 24px; height: 24px;"></i>
+                <h4 style="margin-bottom: 10px; font-size: 13px;">Mudar Tom</h4>
+                <select id="trans-tom-atual" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 8px; font-size: 12px;">
+                    <option value="">Tom Atual...</option>
+                    <option value="C">C</option><option value="C#">C#</option><option value="D">D</option><option value="D#">D#</option><option value="E">E</option><option value="F">F</option><option value="F#">F#</option><option value="G">G</option><option value="G#">G#</option><option value="A">A</option><option value="A#">A#</option><option value="B">B</option>
+                </select>
+                <input type="number" id="trans-semitons" placeholder="+/- Semitons" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 8px; font-size: 12px;">
+                <button class="btn-primary" style="width: 100%; padding: 8px; font-size: 11px;" onclick="calcularNovoTom()">Calcular</button>
+                <div id="resultado-tom" style="margin-top: 10px; font-weight: 800; color: var(--success); font-size: 14px;"></div>
+            </div>
+        </div>
+        
+        <button class="btn-secondary" style="width: 100%; margin-top: 15px;" onclick="closeModal('ferramentas-modal')">Fechar</button>
+    </div>
+</div>
+
+<div id="event-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="ev-modal-titulo">Editar Evento</h2>
+        <div class="form-group">
+            <label>Título</label>
+            <input type="text" id="ev-titulo" placeholder="Ex: Ensaio Geral">
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex: 1.4;">
+                <label>Data</label>
+                <input type="date" id="ev-data">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Hora</label>
+                <input type="time" id="ev-hora">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Tipo (cor no calendário)</label>
+            <select id="ev-tipo">
+                <option value="ensaio">Ensaio</option>
+                <option value="missa">Quinta-Feira Santa</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Local</label>
+            <input type="text" id="ev-local" placeholder="Ex: Comunidade São José">
+        </div>
+        <div class="form-group">
+            <label>Link do Mapa</label>
+            <input type="url" id="ev-url" placeholder="https://www.google.com/maps/...">
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeModal('event-modal')">Cancelar</button>
+            <button class="btn-primary" onclick="saveEvent()">Salvar</button>
+        </div>
+        <button class="btn-danger" id="ev-excluir" onclick="excluirEvento()"><i data-lucide="trash-2" style="width: 16px;"></i> Excluir Este Evento</button>
+    </div>
+</div>
+
+<div class="container">
+    <div id="repertorio" class="page active">
+        <div class="header-linha">
+            <div class="titulos">
+                <h1>Repertório</h1>
+                <div class="subtitle-row">
+                    <p class="subtitle" id="subtitulo-editavel" contenteditable="true" spellcheck="false">Lava Pés • Quinta-feira Santa</p>
+                    <button class="btn-edit-sub" onclick="editarSubtitulo()" title="Editar subtítulo"><i data-lucide="pencil" style="width: 14px; height: 14px;"></i></button>
+                </div>
+            </div>
+            
+            <div class="top-actions-container">
+                <button class="top-action-btn" onclick="window.print()" title="Imprimir / PDF"><i data-lucide="printer"></i></button>
+                <button class="top-action-btn" id="btn-missa" onclick="toggleModoMissa()" title="Modo Missa (Oculta edições)"><i data-lucide="eye-off" id="icon-missa"></i></button>
+                <button class="top-action-btn" onclick="shareWhatsApp()" title="Partilhar no WhatsApp"><i data-lucide="share-2" style="color: var(--success);"></i></button>
+                <button class="top-action-btn" onclick="openFerramentas()" title="Ferramentas e Emergência"><i data-lucide="wrench" style="color: var(--primary);"></i></button>
+                <button class="top-action-btn" onclick="toggleTheme()" title="Trocar Tema"><i data-lucide="moon" id="t-icon"></i></button>
+            </div>
+        </div>
+        
+        <div id="escala-fixa-container"></div>
+        
+        <div class="import-export-container">
+            <button class="btn-backup" onclick="exportarRepertorio()">
+                <i data-lucide="download"></i> Salvar Backup
+            </button>
+            <button class="btn-backup" onclick="document.getElementById('import-file').click()">
+                <i data-lucide="upload"></i> Abrir Backup
+            </button>
+        </div>
+    </div>
+
+    <div id="calendario" class="page">
+        <div class="header-linha">
+            <div class="titulos">
+                <h1>Calendário</h1>
+                <p class="subtitle">Programação e Datas</p>
+            </div>
+        </div>
+
+        <div class="card calendar-card">
+            <div class="cal-header">
+                <button onclick="changeMonth(-1)"><i data-lucide="chevron-left" style="width: 20px;"></i></button>
+                <h3 id="cal-month-year"></h3>
+                <button onclick="changeMonth(1)"><i data-lucide="chevron-right" style="width: 20px;"></i></button>
+            </div>
+            <div class="cal-weekdays">
+                <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+            </div>
+            <div class="cal-days" id="cal-days"></div>
+            <div class="cal-legend">
+                <span class="legend-item"><span class="dot today-dot"></span> Hoje</span>
+                <span class="legend-item"><span class="dot ensaio-dot"></span> Ensaio</span>
+                <span class="legend-item"><span class="dot missa-dot"></span> Quinta-Feira Santa</span>
+            </div>
+            <div id="events-container"></div>
+        </div>
+    </div>
+</div>
+
+<button class="fab-add" id="fab-add" onclick="adicionarMusica()" title="Adicionar Música"><i data-lucide="plus" style="width: 28px; height: 28px;"></i></button>
+
+<nav>
+    <button onclick="showPage('repertorio')" id="n-repertorio" class="active"><i data-lucide="music"></i>Repertório</button>
+    <button onclick="showPage('calendario')" id="n-calendario"><i data-lucide="calendar"></i>Calendário</button>
+</nav>
+
+<script>
+    // Ícone do YouTube embutido (não depende do Lucide)
+    const YT_SVG = (w = 24) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>`;
+
+    // Ícone do Cifra Club: tenta o ícone oficial do site por várias fontes;
+    // se nenhuma carregar, mostra o desenho do ícone embutido (funciona offline)
+    const CIFRA_FONTES = [
+        'https://www.google.com/s2/favicons?domain=cifraclub.com.br&sz=128',
+        'https://icons.duckduckgo.com/ip3/www.cifraclub.com.br.ico',
+        'https://www.cifraclub.com.br/favicon.ico'
+    ];
+    const CIFRA_GLIFO = `<svg class="cifra-logo" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 48 48" stroke-width="2.2" style="color: var(--text); border-radius: 0;"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M9.5 42.5h29a4 4 0 0 0 4-4v-29a4 4 0 0 0-4-4h-29a4 4 0 0 0-4 4v29a4 4 0 0 0 4 4m13.098-20.972L38.621 5.5M25.963 24.766l16.343-16.5"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M30.041 14.083c-3.784-3.658-9.546-4.583-13.835-1.513S15.949 21.09 5.5 24m27.798-6.64c2.8 2.654 7.003 11.38.403 14.892c-5.215 2.776-6.94 1.767-8.327 10.248"/><circle cx="18.584" cy="29.159" r="4.963" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+    function cifraProxima(img) {
+        const i = parseInt(img.dataset.i, 10) + 1;
+        if (i < CIFRA_FONTES.length) {
+            img.dataset.i = i;
+            img.src = CIFRA_FONTES[i];
+        } else {
+            const w = document.createElement('span');
+            w.style.display = 'flex';
+            w.innerHTML = CIFRA_GLIFO;
+            img.replaceWith(w);
+        }
+    }
+    function cifraErro(img) { cifraProxima(img); }
+    function cifraOk(img) {
+        // o Google devolve um globo de 16px quando não acha o ícone
+        if (img.naturalWidth === 0 || (img.dataset.i === '0' && img.naturalWidth <= 16)) cifraProxima(img);
+    }
+
+    const escalaPadrao = [
+        { momento: "Entrada", nome: "Nós Nos Gloriamos na Cruz", tom: "C", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=xgBKXAwFOiw", cifraLink: "", foto: null },
+        { momento: "Ato Penitencial", nome: "Confesso a Deus", tom: "Em", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=WZzaao5oPEA", cifraLink: "", foto: null },
+        { momento: "Ato Penitencial (2)", nome: "Kyrie Eleison", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=Tdm8MHfEzTE", cifraLink: "", foto: null },
+        { momento: "Glória", nome: "Glória a Deus nas alturas", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=PuxYzdksJzI", cifraLink: "", foto: null },
+        { momento: "Aclamação", nome: "Quero Ouvir Tua Palavra", tom: "G", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=38uj83KY9Nc", cifraLink: "", foto: null },
+        { momento: "Lava Pés", nome: "Jesus erguendo-se da ceia", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=JbEJ1Zwh5XI", cifraLink: "", foto: null },
+        { momento: "Ofertório", nome: "Em Teu Abraço", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=nAaGBdjdX9g", cifraLink: "", foto: null },
+        { momento: "Santo", nome: "Sanctus", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=A_5x--UdnRI", cifraLink: "", foto: null },
+        { momento: "Cordeiro", nome: "Cordeiro de Deus", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=LMCbZm4wCgQ", cifraLink: "", foto: null },
+        { momento: "Comunhão", nome: "Tomai, Comei", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=xBOsqiaS0yY", cifraLink: "", foto: null },
+        { momento: "Translado", nome: "Tantum Ergo", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=TCDL7rlSh-0", cifraLink: "", foto: null },
+        { momento: "Tão Sublime", nome: "Tão Sublime", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=H8oT8BKWT9U", cifraLink: "", foto: null },
+        { momento: "Teus Planos", nome: "Teus Planos", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=1PcgVTOhOEM", cifraLink: "", foto: null },
+        { momento: "Podes Reinar", nome: "Podes Reinar", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=sV4DbEdsxhk", cifraLink: "", foto: null },
+        { momento: "A Ele a Glória", nome: "A Ele a Glória", tom: "", bpm: "", anotacoes: "", yt: "https://www.youtube.com/watch?v=PRwul_3TMlY", cifraLink: "", foto: null }
+    ];
+
+    let escala = JSON.parse(localStorage.getItem('meuRepertorio_v8')) || escalaPadrao;
+    let indexAtual = -1; 
+    let tempPhotoBase64 = null; 
+    let tempPhotoType = '';
+    let tempPhotoName = '';
+    let tempAnexoId = null;
+    let photoContext = 'edit'; 
+    let sortableInst = null; 
+
+    // Variáveis do Auto-Scroll
+    let isScrolling = false;
+    let scrollAnimation;
+    let scrollAccumulator = 0; 
+    
+    // Variáveis do Metrônomo
+    let audioCtx = null;
+    let metronomeTimer = null;
+    let isBpmPlaying = false;
+
+    // Variável de Bloqueio de Tela (Wake Lock)
+    let wakeLock = null;
+
+    // URL temporária usada quando o navegador consegue abrir o arquivo nativamente
+    let documentoObjectUrl = null;
+
+    // Anexos (fotos/PDFs/DOC/DOCX etc.) ficam no IndexedDB para não lotar o localStorage.
+    const ANEXOS_DB = 'repertorio-anexos-v1';
+    const ANEXOS_STORE = 'arquivos';
+    let anexosDbPromise = null;
+
+    function abrirBancoAnexos() {
+        if (anexosDbPromise) return anexosDbPromise;
+        anexosDbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open(ANEXOS_DB, 1);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains(ANEXOS_STORE)) {
+                    db.createObjectStore(ANEXOS_STORE);
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('Não foi possível abrir o armazenamento de anexos.'));
+        });
+        return anexosDbPromise;
+    }
+
+    function criarIdAnexo() {
+        if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+        return 'anexo-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    }
+
+    function dataUrlParaBlob(dataUrl, tipo = 'application/octet-stream') {
+        const partes = String(dataUrl).split(',');
+        const base64 = partes[1] || '';
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return new Blob([bytes], { type: tipo });
+    }
+
+    async function salvarAnexoDB(data, tipo, nome) {
+        const db = await abrirBancoAnexos();
+        const id = criarIdAnexo();
+        let blob;
+        if (typeof data === 'string') {
+            blob = dataUrlParaBlob(data, tipo);
+        } else if (data instanceof Blob) {
+            blob = data;
+        } else {
+            blob = new Blob([data], { type: tipo || 'application/octet-stream' });
+        }
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(ANEXOS_STORE, 'readwrite');
+            tx.objectStore(ANEXOS_STORE).put({ blob, type: tipo || blob.type || '', name: nome || '' }, id);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error || new Error('Falha ao salvar o anexo.'));
+        });
+        return id;
+    }
+
+    async function obterAnexoDB(id) {
+        if (!id) return null;
+        const db = await abrirBancoAnexos();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(ANEXOS_STORE, 'readonly');
+            const req = tx.objectStore(ANEXOS_STORE).get(id);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error || new Error('Falha ao ler o anexo.'));
+        });
+    }
+
+    async function excluirAnexoDB(id) {
+        if (!id) return;
+        try {
+            const db = await abrirBancoAnexos();
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(ANEXOS_STORE, 'readwrite');
+                tx.objectStore(ANEXOS_STORE).delete(id);
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (e) {}
+    }
+
+    function prepararEscalaParaSalvar() {
+        // Nunca grava os bytes dos anexos no localStorage.
+        return escala.map(m => {
+            const copia = { ...m };
+            delete copia.foto;
+            return copia;
+        });
+    }
+
+    function salvarDadosLocal() {
+        try { 
+            localStorage.setItem('meuRepertorio_v8', JSON.stringify(prepararEscalaParaSalvar()));
+            return true;
+        } catch (e) {
+            // A base agora contém apenas metadados pequenos. Não mostra mais o alerta
+            // repetitivo que aparecia por causa do limite do localStorage.
+            try {
+                const compacto = escala.map(m => ({
+                    momento: m.momento || '',
+                    nome: m.nome || '',
+                    tom: m.tom || '',
+                    bpm: m.bpm || '',
+                    anotacoes: m.anotacoes || '',
+                    yt: m.yt || '',
+                    cifraLink: m.cifraLink || '',
+                    fotoTipo: m.fotoTipo || '',
+                    fotoNome: m.fotoNome || '',
+                    anexoId: m.anexoId || ''
+                }));
+                localStorage.removeItem('meuRepertorio_v8');
+                localStorage.setItem('meuRepertorio_v8', JSON.stringify(compacto));
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+    }
+
+    async function migrarAnexosAntigos() {
+        let houveMudanca = false;
+        for (const musica of escala) {
+            if (!musica || !musica.foto || musica.anexoId) continue;
+            try {
+                musica.anexoId = await salvarAnexoDB(
+                    musica.foto,
+                    musica.fotoTipo || 'image/jpeg',
+                    musica.fotoNome || ''
+                );
+                musica.foto = null;
+                houveMudanca = true;
+            } catch (e) {
+                // Mantém o legado em memória caso o IndexedDB esteja indisponível.
+            }
+        }
+        if (houveMudanca) salvarDadosLocal();
+    }
+
+    // --- SUBTÍTULO EDITÁVEL ---
+    const SUBTITULO_PADRAO = "Lava Pés • Quinta-feira Santa";
+    const subEl = document.getElementById('subtitulo-editavel');
+
+    try {
+        subEl.innerText = localStorage.getItem('meuRepertorio_subtitulo') || SUBTITULO_PADRAO;
+    } catch (e) {}
+
+    subEl.addEventListener('blur', function() {
+        let txt = subEl.innerText.replace(/\s+/g, ' ').trim();
+        if (!txt) txt = SUBTITULO_PADRAO;
+        subEl.innerText = txt;
+        try { localStorage.setItem('meuRepertorio_subtitulo', txt); } catch (e) {}
+    });
+
+    subEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); subEl.blur(); }
+    });
+
+    subEl.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\s+/g, ' ');
+        document.execCommand('insertText', false, txt);
+    });
+
+    function editarSubtitulo() {
+        if (isModoMissa) return;
+        subEl.focus();
+        const range = document.createRange();
+        range.selectNodeContents(subEl);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    let isModoMissa = false;
+    function toggleModoMissa() {
+        isModoMissa = !isModoMissa;
+        const icon = document.getElementById('icon-missa');
+        subEl.setAttribute('contenteditable', isModoMissa ? 'false' : 'true');
+        if (isModoMissa) { 
+            document.body.classList.add('modo-missa'); 
+            icon.setAttribute('data-lucide', 'eye'); 
+        } else { 
+            document.body.classList.remove('modo-missa'); 
+            icon.setAttribute('data-lucide', 'eye-off'); 
+        }
+        lucide.createIcons();
+    }
+
+    // --- IMPORTAR E EXPORTAR REPERTÓRIO ---
+    function exportarRepertorio() {
+        const dataStr = JSON.stringify(escala);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'repertorio_quinta_santa.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function importarRepertorio(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (Array.isArray(importedData)) {
+                    if (confirm("Isso irá substituir todo o seu repertório atual pelo do arquivo. Deseja continuar?")) {
+                        escala = importedData;
+                        salvarDadosLocal();
+                        renderRepertorio();
+                        alert("Repertório importado com sucesso!");
+                    }
+                } else {
+                    alert("Arquivo inválido. Certifique-se de que é um backup do repertório.");
+                }
+            } catch (error) {
+                alert("Erro ao ler o arquivo. Ele pode estar corrompido.");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; 
+    }
+
+    function shareWhatsApp() {
+        let text = "🎵 *Repertório - Quinta-feira Santa*\n_Missa de Lava Pés_\n\n";
+        escala.forEach((m, index) => {
+            let tom = (m.tom && m.tom.trim() !== "") ? ` [Tom: ${m.tom}]` : "";
+            let bpm = (m.bpm && m.bpm.trim() !== "") ? ` - ${m.bpm} BPM` : "";
+            text += `*${index + 1}. ${m.momento}*\n`;
+            text += `🎶 ${m.nome}${tom}${bpm}\n`;
+            if (m.anotacoes && m.anotacoes.trim() !== "") text += `📌 _${m.anotacoes}_\n`;
+            if (m.yt) text += `🎧 Ouvir: ${m.yt}\n`;
+            text += "\n";
+        });
+        const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
+        window.open(url, '_blank');
+    }
+
+    function renderRepertorio() {
+        let html = '<div class="card card-repertorio" id="lista-arrastavel">';
+        escala.forEach((m, index) => {
+            // O anexo pode estar no IndexedDB (anexoId) e, nesse caso, foto fica null.
+            // O botão de abertura precisa continuar aparecendo para documentos e imagens migradas.
+            const temAnexo = !!(m.foto || m.anexoId);
+            const anexoEhImagem = !!m.foto && (!m.fotoTipo || m.fotoTipo.startsWith('image/'));
+            const extVisual = obterExtensao(m.fotoNome || '').replace('.', '').toUpperCase().slice(0,4);
+            const miniaturaAnexo = anexoEhImagem
+                ? `<img src="${m.foto}" class="cifra-thumb" alt="Miniatura">`
+                : `<span class="anexo-mini-icon">${extVisual || 'ARQ'}</span>`;
+            const photoButton = temAnexo
+                ? `<button class="btn-photo-has" onclick="openFullscreen(${index})" title="Abrir anexo" style="padding: 4px;">${miniaturaAnexo}</button>`
+                : `<button class="action-add-photo" onclick="openPhotoChoiceModal(${index})" title="Adicionar Cifra"><i data-lucide="camera"></i></button>`; 
+
+            const urlCifra = m.cifraLink ? m.cifraLink : `https://www.cifraclub.com.br/?q=${encodeURIComponent(m.nome)}`;
+            
+            // ADICIONADO: Badge do Tom agora é clicável para emitir som!
+            const badgeTom = (m.tom && m.tom.trim() !== "") ? `<span class="badge-info tom-clicavel" onclick="playTom(event, '${m.tom}')" title="Ouvir o tom de referência">${m.tom}</span>` : ``;
+            
+            const badgeBpm = (m.bpm && m.bpm.trim() !== "") ? `<span class="badge-bpm">${m.bpm} BPM</span>` : ``;
+            const divAnotacoes = (m.anotacoes && m.anotacoes.trim() !== "") ? `<div class="anotacoes-preview"><i data-lucide="sticky-note" style="width: 12px; height: 12px;"></i> ${m.anotacoes}</div>` : ``;
+
+            html += `
+            <div class="item-musica" data-id="${index}">
+                <i data-lucide="grip-vertical" class="drag-handle" title="Segure para arrastar"></i>
+                <div class="info-musica">
+                    <span class="momento">${m.momento}</span>
+                    <div class="nome-container"><span class="nome-musica">${m.nome}</span>${badgeTom} ${badgeBpm}</div>
+                    ${divAnotacoes}
+                </div>
+                <div class="actions">
+                    ${photoButton}
+                    <button onclick="openLink('${urlCifra}')" title="Abrir no Cifra Club"><img src="${CIFRA_FONTES[0]}" data-i="0" class="cifra-logo" alt="Cifra Club" onload="cifraOk(this)" onerror="cifraErro(this)"></button>
+                    <button class="btn-youtube" onclick="openLink('${m.yt}')" title="Ouvir no YouTube">${YT_SVG(24)}</button>
+                    <button class="action-edit" onclick="openEditModal(${index})" title="Editar Música"><i data-lucide="pencil" style="width:18px; height:18px;"></i></button>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+
+        html += `<button id="btn-add-bottom" class="btn-primary" style="margin-top: 20px; font-size: 15px; width: 100%;" onclick="adicionarMusica()"><i data-lucide="plus" style="width: 20px; margin-right: 8px;"></i> Adicionar Nova Música</button>`;
+        document.getElementById('escala-fixa-container').innerHTML = html;
+        lucide.createIcons();
+        initDragAndDrop(); 
+    }
+
+    function initDragAndDrop() {
+        const listaArrastavel = document.getElementById('lista-arrastavel');
+        if (sortableInst) sortableInst.destroy();
+        sortableInst = new Sortable(listaArrastavel, {
+            handle: '.drag-handle',
+            animation: 200,
+            ghostClass: 'sortable-ghost',
+            onEnd: function (evt) { 
+                const itemMovido = escala.splice(evt.oldIndex, 1)[0]; 
+                escala.splice(evt.newIndex, 0, itemMovido); 
+                salvarDadosLocal(); 
+                renderRepertorio(); 
+            }
+        });
+    }
+
+    function adicionarMusica() {
+        escala.push({ momento: "Novo Momento", nome: "Nova Música", tom: "", bpm: "", anotacoes: "", yt: "", cifraLink: "", foto: null, anexoId: null, fotoTipo: "", fotoNome: "" });
+        salvarDadosLocal(); 
+        renderRepertorio(); 
+        openEditModal(escala.length - 1);
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+
+    function excluirMusica() {
+        if (confirm("Tem certeza absoluta de que deseja excluir esta música?")) {
+            escala.splice(indexAtual, 1); 
+            salvarDadosLocal(); 
+            renderRepertorio(); 
+            closeModal('edit-modal');
+        }
+    }
+
+    function openPhotoChoiceModal(index) { 
+        indexAtual = index; 
+        document.getElementById('photo-choice-modal').style.display = 'flex'; 
+    }
+
+    function openEditModal(index) {
+        indexAtual = index; 
+        const musica = escala[index];
+        document.getElementById('edit-momento').value = musica.momento || "";
+        document.getElementById('edit-nome').value = musica.nome || "";
+        document.getElementById('edit-tom').value = musica.tom || ""; 
+        document.getElementById('edit-bpm').value = musica.bpm || ""; 
+        document.getElementById('edit-anotacoes').value = musica.anotacoes || ""; 
+        document.getElementById('edit-yt').value = musica.yt || "";
+        document.getElementById('edit-cifra').value = musica.cifraLink || "";
+        
+        tempPhotoBase64 = musica.foto || null;
+        tempPhotoType = musica.fotoTipo || '';
+        tempPhotoName = musica.fotoNome || '';
+        tempAnexoId = musica.anexoId || null;
+        updateModalPhotoUI(musica.foto, musica.fotoTipo, musica.fotoNome, !!musica.anexoId);
+        document.getElementById('edit-modal').style.display = 'flex';
+        if (musica.anexoId && (musica.fotoTipo || '').startsWith('image/')) carregarPreviewAnexoExistente(musica);
+        lucide.createIcons(); 
+    }
+
+    function updateModalPhotoUI(photoData, fileType = '', fileName = '', anexado = false) {
+        const previewImg=document.getElementById('edit-photo-preview'), fileCard=document.getElementById('edit-file-preview-card'), status=document.getElementById('edit-photo-status'), remove=document.getElementById('edit-remove-photo');
+        const nameEl=document.getElementById('edit-file-preview-name'), typeEl=document.getElementById('edit-file-preview-type'), icon=document.getElementById('edit-file-preview-icon');
+        const tem=!!(photoData||tempAnexoId||anexado), img=!!fileType&&fileType.startsWith('image/');
+        if(tem){if(img&&photoData){previewImg.src=photoData;previewImg.style.display='block';fileCard.style.display='none';}else{previewImg.src='';previewImg.style.display='none';fileCard.style.display='flex';nameEl.textContent=fileName||'Arquivo anexado';typeEl.textContent=tipoBonitoArquivo(fileName,fileType);icon.innerHTML='<i data-lucide="file-text"></i>';lucide.createIcons();}status.innerText=fileName?'✓ '+fileName:'✓ Cifra anexada';status.className='photo-status has-photo';remove.style.display='block';}else{previewImg.src='';previewImg.style.display='none';fileCard.style.display='none';status.innerText='Nenhum anexo';status.className='photo-status';remove.style.display='none';}
+    }
+
+    async function saveEdit() {
+        if(indexAtual>-1){
+            escala[indexAtual].momento=document.getElementById('edit-momento').value||'Sem Momento';escala[indexAtual].nome=document.getElementById('edit-nome').value||'Música sem nome';escala[indexAtual].tom=document.getElementById('edit-tom').value.trim();escala[indexAtual].bpm=document.getElementById('edit-bpm').value.trim();escala[indexAtual].anotacoes=document.getElementById('edit-anotacoes').value.trim();escala[indexAtual].yt=document.getElementById('edit-yt').value;escala[indexAtual].cifraLink=document.getElementById('edit-cifra').value;
+            const antigo=escala[indexAtual].anexoId||null;escala[indexAtual].foto=tempPhotoBase64 || null;escala[indexAtual].anexoId=tempAnexoId||null;escala[indexAtual].fotoTipo=tempPhotoType;escala[indexAtual].fotoNome=tempPhotoName;
+            if(antigo&&antigo!==tempAnexoId)await excluirAnexoDB(antigo);salvarDadosLocal();renderRepertorio();closeModal('edit-modal');
+        }
+    }
+
+    function triggerCamera(contexto) { 
+        photoContext = contexto; 
+        document.getElementById('file-upload-camera').click(); 
+    }
+
+    function triggerGallery(contexto) { 
+        photoContext = contexto; 
+        document.getElementById('file-upload-gallery').click(); 
+    }
+
+    // --- UPLOAD DE IMAGEM, PDF OU DOCUMENTO ---
+    const EXTENSOES_IMAGEM = ['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.avif','.heic','.heif'];
+    const TIPOS_DOCUMENTOS = {
+        '.pdf':'PDF', '.doc':'Word 97-2003', '.docx':'Word / LibreOffice', '.docm':'Word', '.dot':'Modelo Word', '.dotx':'Modelo Word',
+        '.odt':'LibreOffice Writer', '.ott':'Modelo LibreOffice Writer', '.fodt':'LibreOffice Writer', '.ods':'LibreOffice Calc', '.ots':'Modelo LibreOffice Calc',
+        '.odp':'LibreOffice Impress', '.otp':'Modelo LibreOffice Impress', '.odg':'LibreOffice Draw', '.rtf':'Rich Text Format', '.txt':'Texto', '.md':'Markdown', '.csv':'CSV', '.log':'Texto'
+    };
+
+    function obterExtensao(nome='') {
+        const n=String(nome||'').toLowerCase();
+        const i=n.lastIndexOf('.');
+        return i>=0 ? n.slice(i) : '';
+    }
+
+    function tipoBonitoArquivo(nome='', tipo='') {
+        const ext=obterExtensao(nome);
+        return TIPOS_DOCUMENTOS[ext] || (tipo && tipo.startsWith('image/') ? 'Imagem' : 'Arquivo anexado');
+    }
+
+    function escapeHtmlDoc(value) {
+        return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function normalizarTipoArquivo(file) {
+        const ext=obterExtensao(file?.name || '');
+        if (file?.type) return file.type;
+        const mapa={
+            '.pdf':'application/pdf','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.docm':'application/vnd.ms-word.document.macroEnabled.12','.dot':'application/msword','.dotx':'application/vnd.openxmlformats-officedocument.wordprocessingml.template',
+            '.odt':'application/vnd.oasis.opendocument.text','.ott':'application/vnd.oasis.opendocument.text-template','.fodt':'application/vnd.oasis.opendocument.text',
+            '.ods':'application/vnd.oasis.opendocument.spreadsheet','.ots':'application/vnd.oasis.opendocument.spreadsheet-template',
+            '.odp':'application/vnd.oasis.opendocument.presentation','.otp':'application/vnd.oasis.opendocument.presentation-template','.odg':'application/vnd.oasis.opendocument.graphics',
+            '.rtf':'application/rtf','.txt':'text/plain','.md':'text/markdown','.csv':'text/csv','.log':'text/plain'
+        };
+        return mapa[ext] || 'application/octet-stream';
+    }
+
+    async function criarPreviewImagem(file) {
+        if (!file || !String(file.type||'').startsWith('image/')) return null;
+        try {
+            const dataUrl=await new Promise((resolve,reject)=>{
+                const fr=new FileReader();
+                fr.onload=()=>resolve(fr.result);
+                fr.onerror=()=>reject(fr.error);
+                fr.readAsDataURL(file);
+            });
+            return await new Promise(resolve=>{
+                const img=new Image();
+                img.onload=()=>{
+                    const max=520;
+                    const scale=Math.min(1,max/Math.max(img.naturalWidth||1,img.naturalHeight||1));
+                    const w=Math.max(1,Math.round((img.naturalWidth||1)*scale));
+                    const h=Math.max(1,Math.round((img.naturalHeight||1)*scale));
+                    const c=document.createElement('canvas'); c.width=w; c.height=h;
+                    const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+                    resolve(c.toDataURL('image/jpeg',0.78));
+                };
+                img.onerror=()=>resolve(dataUrl);
+                img.src=dataUrl;
+            });
+        } catch(_) { return null; }
+    }
+
+    async function aplicarFoto(data, meta = {}) {
+        const tipo = meta.type || 'application/octet-stream';
+        const nome = meta.name || 'arquivo';
+        const preview = meta.preview || null;
+        let id = null;
+        try {
+            id = await salvarAnexoDB(data, tipo, nome);
+        } catch (err) {
+            if (typeof data === 'string' && tipo.startsWith('image/')) {
+                tempPhotoBase64 = data;
+                tempPhotoType = tipo;
+                tempPhotoName = nome;
+                tempAnexoId = null;
+                updateModalPhotoUI(data, tipo, nome, true);
+                return;
+            }
+            throw err;
+        }
+
+        if (photoContext === 'edit') {
+            tempPhotoBase64 = preview;
+            tempAnexoId = id;
+            tempPhotoType = tipo;
+            tempPhotoName = nome;
+            updateModalPhotoUI(preview, tipo, nome, true);
+            return;
+        }
+
+        if (photoContext === 'direct') {
+            if (indexAtual < 0 || !escala[indexAtual]) {
+                await excluirAnexoDB(id);
+                return;
+            }
+            const antigo = escala[indexAtual].anexoId || null;
+            escala[indexAtual].foto = preview;
+            escala[indexAtual].anexoId = id;
+            escala[indexAtual].fotoTipo = tipo;
+            escala[indexAtual].fotoNome = nome;
+            if (antigo && antigo !== id) await excluirAnexoDB(antigo);
+            salvarDadosLocal();
+            renderRepertorio();
+            closeModal('photo-choice-modal');
+        }
+    }
+
+    async function removePhotoModal() {
+        if(!confirm('Tem certeza de que deseja remover o anexo?')) return;
+        const id=tempAnexoId;
+        tempPhotoBase64=null; tempPhotoType=''; tempPhotoName=''; tempAnexoId=null;
+        updateModalPhotoUI(null,'','');
+        if(id) await excluirAnexoDB(id);
+    }
+
+    async function handleFileUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        event.target.value = '';
+        if (!file) return;
+
+        const tipo = normalizarTipoArquivo(file);
+        const nome = file.name || 'arquivo';
+        const ext = obterExtensao(nome);
+        const permitido = !!tipo.startsWith('image/') || !!TIPOS_DOCUMENTOS[ext];
+        if (!permitido) {
+            alert('Formato não suportado. Use imagens, PDF, Word (.doc/.docx) ou arquivos do LibreOffice (.odt/.ods/.odp/.fodt).');
+            return;
+        }
+
+        try {
+            const preview = tipo.startsWith('image/') ? await criarPreviewImagem(file) : null;
+            await aplicarFoto(file, { type: tipo, name: nome, preview });
+        } catch (erro) {
+            console.error('Falha ao anexar arquivo:', erro);
+            alert('Não foi possível carregar este arquivo. Tente novamente.');
+        }
+    }
+
+    async function carregarPreviewAnexoExistente(musica) {
+        if (!musica || !musica.anexoId || !(musica.fotoTipo||'').startsWith('image/')) return;
+        try {
+            const registro=await obterAnexoDB(musica.anexoId);
+            if (!registro?.blob) return;
+            const preview=await criarPreviewImagem(registro.blob);
+            if (indexAtual===escala.indexOf(musica) && tempAnexoId===musica.anexoId) {
+                tempPhotoBase64=preview;
+                updateModalPhotoUI(preview, musica.fotoTipo || registro.type, musica.fotoNome || registro.name, true);
+            }
+        } catch(_) {}
+    }
+
+    // --- LEITORES LOCAIS DE DOCUMENTOS ---
+    function obterMimePorExtensao(ext) {
+        const mapa={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.webp':'image/webp','.bmp':'image/bmp','.svg':'image/svg+xml','.avif':'image/avif'};
+        return mapa[ext.toLowerCase()] || 'application/octet-stream';
+    }
+
+    function parseXml(text) {
+        const doc=new DOMParser().parseFromString(text,'application/xml');
+        if (doc.querySelector('parsererror')) throw new Error('XML inválido');
+        return doc;
+    }
+
+    function xmlLocal(el){ return el?.localName || String(el?.nodeName||'').split(':').pop(); }
+    function attrLocal(el, wanted){
+        if(!el?.attributes) return '';
+        for(const a of el.attributes){ if((a.localName||a.name.split(':').pop())===wanted) return a.value; }
+        return '';
+    }
+
+    async function zipText(zip, path) {
+        const f=zip.file(path);
+        if(!f) throw new Error('Arquivo interno ausente: '+path);
+        return await f.async('text');
+    }
+
+    function normalizarCaminhoZip(path) {
+        const partes=[];
+        for(const parte of String(path||'').split('/')) {
+            if(!parte || parte==='.') continue;
+            if(parte==='..') partes.pop(); else partes.push(parte);
+        }
+        return partes.join('/');
+    }
+
+    async function zipDataUrl(zip, path) {
+        const f=zip.file(path);
+        if(!f) return null;
+        const ext=obterExtensao(path);
+        const mime=obterMimePorExtensao(ext);
+        const b64=await f.async('base64');
+        return `data:${mime};base64,${b64}`;
+    }
+
+    async function renderDocx(blob) {
+        if(!window.JSZip) throw new Error('Leitor de documentos indisponível (JSZip).');
+        const zip=await JSZip.loadAsync(blob);
+        const xml=await zipText(zip,'word/document.xml');
+        const relsXml=zip.file('word/_rels/document.xml.rels') ? await zipText(zip,'word/_rels/document.xml.rels') : '';
+        const rels={};
+        if(relsXml){ const rd=parseXml(relsXml); for(const r of rd.documentElement.children){ if(xmlLocal(r)==='Relationship') rels[attrLocal(r,'Id')]=attrLocal(r,'Target'); } }
+        const doc=parseXml(xml);
+        const body=[...doc.getElementsByTagNameNS('*','body')][0] || doc.documentElement;
+
+        async function imgFromDrawing(node){
+            const blip=node.querySelector('[localName="blip"]') || [...node.getElementsByTagName('*')].find(x=>xmlLocal(x)==='blip');
+            if(!blip) return '';
+            const rid=attrLocal(blip,'embed');
+            const target=rels[rid];
+            if(!target) return '';
+            const clean=normalizarCaminhoZip(target.replace(/^\/+/, ''));
+            const path=clean.startsWith('word/') ? clean : normalizarCaminhoZip(`word/${clean}`);
+            return await zipDataUrl(zip,path);
+        }
+
+        function runStyle(r){
+            const pr=[...r.children].find(x=>xmlLocal(x)==='rPr');
+            return {
+                bold:!!pr?.children && [...pr.children].some(x=>xmlLocal(x)==='b'),
+                italic:!!pr?.children && [...pr.children].some(x=>xmlLocal(x)==='i'),
+                underline:!!pr?.children && [...pr.children].some(x=>xmlLocal(x)==='u'),
+                strike:!!pr?.children && [...pr.children].some(x=>xmlLocal(x)==='strike')
+            };
+        }
+
+        async function renderInline(parent){
+            let out='';
+            for(const ch of parent.children){
+                const n=xmlLocal(ch);
+                if(n==='r'){
+                    const st=runStyle(ch); let txt='';
+                    for(const x of ch.children){
+                        const q=xmlLocal(x);
+                        if(q==='t') txt+=escapeHtmlDoc(x.textContent||'');
+                        else if(q==='tab') txt+='&emsp;';
+                        else if(q==='br'||q==='cr') txt+='<br>';
+                        else if(q==='drawing'||q==='pict') { const src=await imgFromDrawing(x); if(src) txt+=`<img src="${src}" alt="Imagem do documento" loading="lazy">`; }
+                    }
+                    if(st.bold) txt=`<strong>${txt}</strong>`; if(st.italic) txt=`<em>${txt}</em>`; if(st.underline) txt=`<u>${txt}</u>`; if(st.strike) txt=`<s>${txt}</s>`;
+                    out+=txt;
+                } else if(n==='hyperlink') out+=await renderInline(ch);
+                else if(n==='bookmarkStart'||n==='bookmarkEnd'||n==='proofErr'||n==='commentRangeStart'||n==='commentRangeEnd') {}
+            }
+            return out;
+        }
+
+        async function renderTable(tbl){
+            let h='<table><tbody>';
+            for(const tr of tbl.children){ if(xmlLocal(tr)!=='tr') continue; h+='<tr>'; for(const tc of tr.children){ if(xmlLocal(tc)!=='tc') continue; h+='<td>'+await renderBlockContainer(tc)+'</td>'; } h+='</tr>'; }
+            return h+'</tbody></table>';
+        }
+
+        async function renderBlockContainer(container){
+            let h='';
+            for(const el of container.children){
+                const n=xmlLocal(el);
+                if(n==='p'){
+                    const pPr=[...el.children].find(x=>xmlLocal(x)==='pPr');
+                    const ps=pPr ? [...pPr.children].find(x=>xmlLocal(x)==='pStyle') : null;
+                    const style=ps ? attrLocal(ps,'val') : '';
+                    const tag=/heading1/i.test(style)?'h1':/heading2/i.test(style)?'h2':/heading3/i.test(style)?'h3':/title/i.test(style)?'h2':'p';
+                    const inner=await renderInline(el);
+                    h+=`<${tag}>${inner || '&nbsp;'}</${tag}>`;
+                } else if(n==='tbl') h+=await renderTable(el);
+                else if(n==='sdt'){ h+=await renderBlockContainer(el); }
+            }
+            return h;
+        }
+        return await renderBlockContainer(body);
+    }
+
+    async function renderOdf(blob, ext) {
+        let xmlText;
+        if(ext==='.fodt') xmlText=await blob.text();
+        else {
+            if(!window.JSZip) throw new Error('Leitor de documentos indisponível (JSZip).');
+            const zip=await JSZip.loadAsync(blob);
+            xmlText=await zipText(zip,'content.xml');
+            async function renderImageHref(href){
+                if(!href) return '';
+                let clean=normalizarCaminhoZip(decodeURIComponent(href).replace(/^\.\//,''));
+                return await zipDataUrl(zip,clean) || '';
+            }
+            return await renderOdfXml(xmlText, renderImageHref);
+        }
+        return await renderOdfXml(xmlText, async()=>null);
+    }
+
+    async function renderOdfXml(xmlText, imageResolver){
+        const doc=parseXml(xmlText);
+        const root=doc.documentElement;
+
+        async function renderNode(el){
+            const n=xmlLocal(el);
+            if(n==='text:p'||n==='text:h'||n==='p'||n==='h'){
+                const level=parseInt(attrLocal(el,'outline-level')||'1',10);
+                const inner=await renderChildren(el);
+                if(n.endsWith('h')) return `<h${Math.min(6,Math.max(1,level))}>${inner||'&nbsp;'}</h${Math.min(6,Math.max(1,level))}>`;
+                return `<p>${inner||'&nbsp;'}</p>`;
+            }
+            if(n==='text:span'||n==='span') return `<span>${await renderChildren(el)}</span>`;
+            if(n==='text:list'||n==='list'){ let h='<ul>'; for(const item of el.children){ if(xmlLocal(item)==='list-item') h+=`<li>${await renderChildren(item)}</li>`; } return h+'</ul>'; }
+            if(n==='table') return await renderTableOdf(el);
+            if(n==='text:s'||n==='s') { const c=parseInt(attrLocal(el,'c')||'1',10); return '&nbsp;'.repeat(Math.min(c,20)); }
+            if(n==='text:tab'||n==='tab') return '&emsp;';
+            if(n==='text:line-break'||n==='line-break') return '<br>';
+            if(n==='draw:image'||n==='image'){ const href=attrLocal(el,'href') || attrLocal(el,'xlink:href'); const src=await imageResolver(href); return src?`<img src="${src}" alt="Imagem do documento" loading="lazy">`:''; }
+            return await renderChildren(el);
+        }
+        async function renderChildren(el){ let h=''; for(const child of el.childNodes){ if(child.nodeType===3){ h+=escapeHtmlDoc(child.nodeValue); } else if(child.nodeType===1){ h+=await renderNode(child); } } return h; }
+        async function renderTableOdf(table){
+            let h='<table><tbody>';
+            for(const row of table.children){ if(xmlLocal(row)!=='table-row') continue; h+='<tr>'; for(const cell of row.children){ if(xmlLocal(cell)!=='table-cell') continue; h+=`<td>${await renderChildren(cell)}</td>`; } h+='</tr>'; }
+            return h+'</tbody></table>';
+        }
+        const body=[...root.getElementsByTagName('*')].find(x=>xmlLocal(x)==='text' || xmlLocal(x)==='body') || root;
+        return await renderChildren(body);
+    }
+
+    async function renderRtf(blob) {
+        const text=await blob.text();
+        let out='', ignore=0, uc=1;
+        for(let i=0;i<text.length;i++){
+            const ch=text[i];
+            if(ch==='{'||ch==='}') { if(ch==='{') ignore++; else ignore=Math.max(0,ignore-1); continue; }
+            if(ch==='\\'){
+                let j=i+1; if(j>=text.length) break;
+                if(text[j]==='\'' && /^[0-9a-fA-F]{2}$/.test(text.slice(j+1,j+3))){ out+=String.fromCharCode(parseInt(text.slice(j+1,j+3),16)); i=j+2; continue; }
+                const m=text.slice(j).match(/^([a-zA-Z]+)(-?\d+)? ?/);
+                if(m){ const cmd=m[1].toLowerCase(); i=j+m[0].length-1;
+                    if(cmd==='par'||cmd==='line'||cmd==='row') out+='\n'; else if(cmd==='tab') out+='\t'; else if(cmd==='u'){ /* unicode handled minimally */ }
+                    continue; }
+                i=j; continue;
+            }
+            if(ignore===0) out+=ch;
+        }
+        return `<pre>${escapeHtmlDoc(out.replace(/\r\n/g,'\n'))}</pre>`;
+    }
+
+    async function renderTextLike(blob, ext) {
+        const text=await blob.text();
+        return `<pre>${escapeHtmlDoc(text.replace(/\r\n/g,'\n'))}</pre>`;
+    }
+
+    function mostrarDocumentoErro(mensagem){
+        const loading=document.getElementById('fullscreen-doc-loading');
+        const fallback=document.getElementById('fullscreen-doc-fallback');
+        const p=fallback.querySelector('p');
+        if(loading) loading.style.display='none';
+        if(p) p.textContent=mensagem;
+        fallback.style.display='block';
+        document.getElementById('fullscreen-doc-content').style.display='none';
+        document.getElementById('fullscreen-doc-native').style.display='none';
+    }
+
+    async function carregarLeitorDoc(){
+        if(window.docToText) return true;
+        const urls=[
+            'https://raw.githubusercontent.com/Alpaq92/JSDoc/refs/heads/main/src/docToText.js',
+            'https://alpaq92.github.io/JSDoc/src/docToText.js'
+        ];
+        for(const src of urls){
+            try{ await new Promise((resolve,reject)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>resolve(); s.onerror=()=>reject(new Error('load')); document.head.appendChild(s); }); if(window.docToText) return true; }catch(_){}
+        }
+        return false;
+    }
+
+    async function renderLegacyDoc(blob){
+        const ok=await carregarLeitorDoc();
+        if(!ok || !window.docToText) throw new Error('Leitor de DOC indisponível.');
+        const buf=await blob.arrayBuffer();
+        let result=null;
+        if(typeof window.docToText.html==='function') result=window.docToText.html(buf);
+        if(result && typeof result==='object' && result.body) return result.body;
+        const text=window.docToText(buf);
+        if(text==null) throw new Error('Este .doc está protegido, corrompido ou não é compatível.');
+        return `<pre>${escapeHtmlDoc(text)}</pre>`;
+    }
+
+    async function abrirPdfNoAcompanhamento(blob, content, loading){
+        await carregarPdfJs();
+        const pdf=await pdfjsLib.getDocument({data:await blob.arrayBuffer()}).promise;
+        content.innerHTML='';
+        for(let i=1;i<=pdf.numPages;i++){
+            const page=await pdf.getPage(i);
+            const base=page.getViewport({scale:1.25});
+            const maxW=Math.min(850, Math.max(360, content.clientWidth||850));
+            const scale=maxW/base.width;
+            const viewport=page.getViewport({scale});
+            const wrap=document.createElement('div'); wrap.className='pdf-page-wrap';
+            const canvas=document.createElement('canvas'); canvas.className='pdf-page-canvas';
+            canvas.width=Math.floor(viewport.width); canvas.height=Math.floor(viewport.height);
+            wrap.appendChild(canvas); content.appendChild(wrap);
+            await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+        }
+        loading.style.display='none'; content.style.display='block';
+    }
+
+    async function abrirDocumentoNoAcompanhamento(musica, blob){
+        const content=document.getElementById('fullscreen-doc-content');
+        const loading=document.getElementById('fullscreen-doc-loading');
+        const native=document.getElementById('fullscreen-doc-native');
+        const fallback=document.getElementById('fullscreen-doc-fallback');
+        const nameEl=document.getElementById('fullscreen-doc-name');
+        const typeEl=document.getElementById('fullscreen-doc-type');
+        const download=document.getElementById('fullscreen-doc-download');
+        const nome=musica.fotoNome || 'Documento anexado';
+        const tipo=musica.fotoTipo || blob?.type || normalizarTipoArquivo({name:nome,type:''});
+        const ext=obterExtensao(nome);
+        if(!blob) throw new Error('Arquivo não encontrado no armazenamento.');
+
+        nameEl.textContent=nome;
+        typeEl.textContent=tipoBonitoArquivo(nome,tipo);
+        if(documentoObjectUrl) URL.revokeObjectURL(documentoObjectUrl);
+        documentoObjectUrl=URL.createObjectURL(blob);
+        download.href=documentoObjectUrl;
+        download.download=nome;
+        fallback.style.display='none'; native.style.display='none'; content.style.display='none'; loading.style.display='block';
+
+        if(ext==='.pdf' || tipo==='application/pdf'){
+            await abrirPdfNoAcompanhamento(blob,content,loading); return;
+        }
+        let html='';
+        if(['.docx','.docm','.dotx'].includes(ext) || /wordprocessingml/.test(tipo)) html=await renderDocx(blob);
+        else if(['.odt','.ott','.fodt'].includes(ext) || /opendocument\.text/.test(tipo)) html=await renderOdf(blob,ext);
+        else if(['.ods','.ots','.odp','.otp','.odg'].includes(ext) || /opendocument/.test(tipo)) html=await renderOdf(blob,ext);
+        else if(ext==='.doc' || tipo==='application/msword') html=await renderLegacyDoc(blob);
+        else if(ext==='.rtf' || tipo==='application/rtf') html=await renderRtf(blob);
+        else if(['.txt','.md','.csv','.log'].includes(ext) || tipo.startsWith('text/')) html=await renderTextLike(blob,ext);
+        else {
+            // Última tentativa: o próprio navegador pode renderizar este tipo em um iframe.
+            native.src=documentoObjectUrl; native.style.display='block'; loading.style.display='none'; return;
+        }
+        content.innerHTML=html || '<p>Nenhum conteúdo legível encontrado neste arquivo.</p>';
+        loading.style.display='none'; content.style.display='block';
+    }
+
+    function getYouTubeEmbedUrl(url) {
+        if (!url) return null;
+        let videoId = "";
+        try {
+            if (url.includes('youtube.com/watch?v=')) { 
+                videoId = url.split('v=')[1].split('&')[0]; 
+            } else if (url.includes('youtu.be/')) { 
+                videoId = url.split('youtu.be/')[1].split('?')[0]; 
+            }
+            return videoId ? `https://www.youtube.com/embed/${videoId}?playsinline=1` : null;
+        } catch (e) { 
+            return null; 
+        }
+    }
+
+    // --- BLOQUEIO DE TELA (WAKE LOCK) ---
+    async function solicitarWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+            }
+        } catch (err) {
+            console.log(`Wake Lock Error: ${err.message}`);
+        }
+    }
+
+    function liberarWakeLock() {
+        if (wakeLock !== null) {
+            wakeLock.release().then(() => { wakeLock = null; });
+        }
+    }
+
+    document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+            solicitarWakeLock();
+        }
+    });
+
+    // --- TELA CHEIA (SIDEBAR FIXA) ---
+    async function openFullscreen(index) {
+        indexAtual = index;
+        const musica = escala[index];
+        if (!musica || (!musica.foto && !musica.anexoId)) return;
+
+        const fs = document.getElementById('fullscreen-photo');
+        const area = document.getElementById('fs-image-container');
+        const img = document.getElementById('fullscreen-img');
+        const wrapper = document.getElementById('canvas-wrapper');
+        const docViewer = document.getElementById('fullscreen-doc-viewer');
+        const content = document.getElementById('fullscreen-doc-content');
+        const native = document.getElementById('fullscreen-doc-native');
+        const fallback = document.getElementById('fullscreen-doc-fallback');
+        const drawToggle = document.getElementById('btn-draw-toggle');
+
+        if (documentoObjectUrl) {
+            URL.revokeObjectURL(documentoObjectUrl);
+            documentoObjectUrl = null;
+        }
+
+        fs.style.display = 'flex';
+        area.scrollTop = 0;
+        scrollAccumulator = 0;
+        pararAutoScroll();
+        pararMetronomo();
+        solicitarWakeLock();
+        document.getElementById('manual-bpm-input').value = musica.bpm || '';
+
+        img.src = '';
+        img.style.display = 'block';
+        wrapper.style.display = 'inline-block';
+        docViewer.style.display = 'none';
+        content.style.display = 'none';
+        content.innerHTML = '';
+        native.src = 'about:blank';
+        native.style.display = 'none';
+        fallback.style.display = 'none';
+        document.getElementById('fullscreen-doc-loading').style.display = 'none';
+        drawToggle.style.display = 'flex';
+
+        try {
+            let blob = null;
+            let tipo = musica.fotoTipo || '';
+            let nome = musica.fotoNome || '';
+
+            if (musica.anexoId) {
+                const registro = await obterAnexoDB(musica.anexoId);
+                if (!registro || !registro.blob) throw new Error('Anexo não encontrado no IndexedDB.');
+                blob = registro.blob;
+                tipo = registro.type || tipo || blob.type || '';
+                nome = registro.name || nome;
+            }
+
+            const ext = obterExtensao(nome);
+            const ehImagem = tipo.startsWith('image/') || EXTENSOES_IMAGEM.includes(ext) || (!!musica.foto && !TIPOS_DOCUMENTOS[ext]);
+
+            if (ehImagem) {
+                if (blob) {
+                    documentoObjectUrl = URL.createObjectURL(blob);
+                    img.src = documentoObjectUrl;
+                } else {
+                    img.src = musica.foto;
+                }
+                wrapper.style.display = 'inline-block';
+                img.style.display = 'block';
+                docViewer.style.display = 'none';
+                drawToggle.style.display = 'flex';
+            } else {
+                wrapper.style.display = 'none';
+                img.style.display = 'none';
+                docViewer.style.display = 'block';
+                drawToggle.style.display = 'none';
+                await abrirDocumentoNoAcompanhamento({ ...musica, fotoNome: nome, fotoTipo: tipo }, blob);
+            }
+        } catch (erro) {
+            console.error('Falha ao abrir anexo:', erro);
+            mostrarDocumentoErro('Não foi possível abrir o arquivo. O anexo continua salvo e pode ser baixado pelo botão azul.');
+        }
+
+        const ytEmbedUrl = getYouTubeEmbedUrl(musica.yt);
+        const ytIframe = document.getElementById('fs-yt-iframe');
+        const ytEmpty = document.getElementById('yt-empty-msg');
+        if (ytEmbedUrl) {
+            ytIframe.src = ytEmbedUrl;
+            ytIframe.style.display = 'block';
+            ytEmpty.style.display = 'none';
+        } else {
+            ytIframe.src = '';
+            ytIframe.style.display = 'none';
+            ytEmpty.style.display = 'block';
+        }
+        lucide.createIcons();
+    }
+
+    function closeFullscreen() {
+        document.getElementById('fullscreen-photo').style.display = 'none';
+        document.getElementById('fullscreen-img').src = "";
+        document.getElementById('canvas-wrapper').style.display = 'inline-block';
+        document.getElementById('fullscreen-doc-viewer').style.display = 'none';
+        document.getElementById('fullscreen-doc-content').innerHTML = '';
+        document.getElementById('fullscreen-doc-content').style.display = 'none';
+        document.getElementById('fullscreen-doc-native').src = 'about:blank';
+        document.getElementById('fullscreen-doc-native').style.display = 'none';
+        document.getElementById('fullscreen-doc-fallback').style.display = 'none';
+        document.getElementById('fullscreen-doc-loading').style.display = 'none';
+        document.getElementById('btn-draw-toggle').style.display = 'flex';
+        document.getElementById('fs-yt-iframe').src = ""; 
+        if (documentoObjectUrl) {
+            URL.revokeObjectURL(documentoObjectUrl);
+            documentoObjectUrl = null;
+        }
+        pararAutoScroll(); 
+        pararMetronomo();
+        liberarWakeLock(); 
+    }
+
+    function removePhotoFullscreen() {
+        if (indexAtual > -1 && confirm("Tem certeza de que deseja apagar o anexo desta cifra?")) {
+            const anexoId = escala[indexAtual].anexoId || null;
+            escala[indexAtual].foto = null;
+            escala[indexAtual].anexoId = null;
+            escala[indexAtual].fotoTipo = '';
+            escala[indexAtual].fotoNome = '';
+            if (anexoId) excluirAnexoDB(anexoId);
+            salvarDadosLocal(); 
+            renderRepertorio(); 
+            closeFullscreen();
+        }
+    }
+
+    // --- NAVEGAÇÃO ENTRE CIFRAS (TELA CHEIA) ---
+    function navegarCifra(direcao) {
+        let novoIndex = indexAtual + direcao;
+        
+        // Procura a próxima música que tenha uma foto anexada
+        while(novoIndex >= 0 && novoIndex < escala.length) {
+            if(escala[novoIndex].foto || escala[novoIndex].anexoId) {
+                openFullscreen(novoIndex);
+                return;
+            }
+            novoIndex += direcao;
+        }
+        
+        // Se não achar mais nenhuma na direção que clicou
+        alert(direcao > 0 ? "Fim das cifras! Esta foi a última." : "Você já está na primeira cifra do repertório.");
+    }
+
+    // --- LÓGICA DO DIAPASÃO (TOM DE REFERÊNCIA) ---
+    const frequenciasNotas = {
+        'C': 261.63, 'C#': 277.18, 'Db': 277.18, 'D': 293.66, 'D#': 311.13, 'Eb': 311.13,
+        'E': 329.63, 'F': 349.23, 'F#': 369.99, 'Gb': 369.99, 'G': 392.00, 'G#': 415.30, 
+        'Ab': 415.30, 'A': 440.00, 'A#': 466.16, 'Bb': 466.16, 'B': 493.88
+    };
+
+    function playTom(event, tom) {
+        event.stopPropagation(); // Evita que clique em outras coisas sem querer
+        if (!tom) return;
+        
+        // Pega só a nota base (ignora o "m" de menor, "7" de sétima, etc)
+        let match = tom.match(/^[A-G][#b]?/);
+        if (!match) return;
+        
+        let freq = frequenciasNotas[match[0]];
+        if (!freq) return;
+
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        osc.type = 'sine'; // Som suave
+        osc.frequency.value = freq;
+
+        // Efeito de Fade (Aumenta rápido, some aos poucos)
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.5);
+
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 2.5);
+    }
+
+    // --- LÓGICA DO METRÔNOMO MANUAL ---
+    function playBeep() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.connect(gainNode); 
+        gainNode.connect(audioCtx.destination);
+        
+        osc.frequency.value = 800; 
+        osc.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        
+        osc.start(audioCtx.currentTime); 
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function toggleManualMetronome() {
+        const input = document.getElementById('manual-bpm-input');
+        const bpm = parseInt(input.value);
+        const btn = document.getElementById('btn-metronome-play');
+
+        if (isBpmPlaying) {
+            pararMetronomo();
+        } else {
+            if (!bpm || bpm <= 0) {
+                alert("Por favor, digite um valor de BPM válido na caixa.");
+                input.focus();
+                return;
+            }
+            
+            const intervalMs = 60000 / bpm; 
+            playBeep(); 
+            
+            metronomeTimer = setInterval(playBeep, intervalMs);
+            isBpmPlaying = true;
+            
+            btn.classList.add('playing');
+            btn.innerHTML = `<i data-lucide="square" style="width: 18px;"></i> Parar`;
+            lucide.createIcons();
+        }
+    }
+
+    function pararMetronomo() {
+        clearInterval(metronomeTimer); 
+        isBpmPlaying = false;
+        
+        const btn = document.getElementById('btn-metronome-play');
+        if (btn) {
+            btn.classList.remove('playing');
+            btn.innerHTML = `<i data-lucide="play" style="width: 18px;"></i> Tocar`;
+            lucide.createIcons();
+        }
+    }
+
+    // --- AUTO SCROLL ---
+    function scrollStep() {
+        if (!isScrolling) return;
+        
+        const container = document.getElementById('fs-image-container');
+        const slider = document.getElementById('speed-slider');
+        let velocidade = parseFloat(slider.value) || 2;
+        
+        document.getElementById('speed-value').innerText = velocidade + 'x';
+        scrollAccumulator += (velocidade * 0.5);
+
+        if (scrollAccumulator >= 1) {
+            let pixelsToScroll = Math.floor(scrollAccumulator);
+            container.scrollTop += pixelsToScroll; 
+            scrollAccumulator -= pixelsToScroll; 
+        }
+
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) { 
+            pararAutoScroll(); 
+        } else { 
+            scrollAnimation = requestAnimationFrame(scrollStep); 
+        }
+    }
+
+    document.addEventListener('input', function(e) {
+        if (e.target.id === 'speed-slider') { 
+            document.getElementById('speed-value').innerText = e.target.value + 'x'; 
+        }
+    });
+
+    function toggleAutoScroll() {
+        const btn = document.getElementById('btn-autoscroll');
+        if (isScrolling) { 
+            pararAutoScroll(); 
+        } else { 
+            isScrolling = true; 
+            btn.classList.add('playing'); 
+            btn.innerHTML = `<i data-lucide="pause" style="width: 20px;"></i> Pausar`; 
+            lucide.createIcons(); 
+            scrollAnimation = requestAnimationFrame(scrollStep); 
+        }
+    }
+
+    function pararAutoScroll() {
+        isScrolling = false; 
+        cancelAnimationFrame(scrollAnimation);
+        
+        const btn = document.getElementById('btn-autoscroll');
+        if(btn) { 
+            btn.classList.remove('playing'); 
+            btn.innerHTML = `<i data-lucide="play" style="width: 20px;"></i> Iniciar Rolagem`; 
+            lucide.createIcons(); 
+        }
+    }
+
+    function compressImage(base64Str, maxWidth, callback) {
+        let img = new Image(); 
+        img.src = base64Str;
+        img.onload = () => {
+            let canvas = document.createElement('canvas'); 
+            let width = img.width; 
+            let height = img.height;
+            
+            if (width > maxWidth) { 
+                height *= maxWidth / width; 
+                width = maxWidth; 
+            }
+            
+            canvas.width = width; 
+            canvas.height = height; 
+            let ctx = canvas.getContext('2d'); 
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            callback(canvas.toDataURL('image/jpeg', 0.8)); 
+        };
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+        if (id === 'edit-modal') {
+            const img = document.getElementById('edit-photo-preview');
+            if (img && img.src && img.src.startsWith('blob:')) { URL.revokeObjectURL(img.src); img.src = ''; }
+        }
+    }
+    
+    function openLink(url) { 
+        if (!url) return; 
+        if (url.startsWith('http://') || url.startsWith('https://')) { 
+            window.open(url, '_blank'); 
+        } else { 
+            alert("O link não é válido."); 
+        } 
+    }
+
+    function showPage(p) {
+        document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(p).classList.add('active'); 
+        document.getElementById('n-'+p).classList.add('active');
+        
+        const fab = document.getElementById('fab-add'); 
+        if(fab) fab.style.display = (p === 'repertorio' && !isModoMissa) ? 'flex' : 'none';
+        
+        const reminder = document.getElementById('reminder-popup');
+        if (reminder && reminder.style.display !== 'none') { 
+            reminder.style.opacity = p === 'repertorio' ? '1' : '0'; 
+            reminder.style.pointerEvents = p === 'repertorio' ? 'auto' : 'none'; 
+        }
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode'); 
+        const isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('t-icon').setAttribute('data-lucide', isDark ? 'sun' : 'moon'); 
+        lucide.createIcons();
+    }
+
+    // --- EVENTOS (editáveis e salvos no aparelho) ---
+    const eventosPadrao = [
+            { id: '2026-03-22', type: 'ensaio', dataStr: '22 de Março', titulo: 'Ensaio Geral', hora: '09h30', local: 'Comunidade São José', url: 'https://www.google.com/maps/place/Posto+Petrobras/@-23.2113145,-46.8443653,3a,75y,156.33h,88.66t/data=!3m7!1e1!3m5!1sh76jolZkxLZ9GFXyiEckGA!2e0!6shttps:%2F%2Fstreetviewpixels-pa.googleapis.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D1.3433673004713285%26panoid%3Dh76jolZkxLZ9GFXyiEckGA%26yaw%3D156.32537419791936!7i16384!8i8192!4m7!3m6!1s0x94cf20bcb874f2b3:0xa9e773eb960663a5!8m2!3d-23.2109729!4d-46.844975!10e5!16s%2Fg%2F1tg51knf?entry=ttu&g_ep=EgoyMDI2MDMwNS4wIKXMDSoASAFQAw%3D%3D' },
+            { id: '2026-04-02', type: 'missa', dataStr: '02 de Abril', titulo: 'Missa de Lava Pés', hora: '19h00', local: 'Ginásio de Esportes Ayrton Senna', url: 'https://www.google.com/maps/place/Gin%C3%A1sio+de+Esportes+Ayrton+Senna+-+R.+Arist%C3%ADdes+Nivoloni,+240+-+Jardim+Maria+de+Fatima,+V%C3%A1rzea+Paulista+-+SP,+13220-450/@-23.2131688,-46.8626107,15z/data=!3m1!4b1!4m6!3m5!1s0x94cf20b899b3d91f:0x54672f98e04bd447!8m2!3d-23.2131896!4d-46.8441566!16s%2Fg%2F11b5qrvt4x?entry=ttu&g_ep=EgoyMDI2MDMwNS4wIKXMDSoASAFQAw%3D%3D' }
+        ];
+
+    let eventos = (function () {
+        try { return JSON.parse(localStorage.getItem('meuRepertorio_eventos')); } catch (e) { return null; }
+    })() || eventosPadrao;
+
+    function salvarEventos() {
+        try { localStorage.setItem('meuRepertorio_eventos', JSON.stringify(eventos)); } catch (e) {}
+    }
+
+    function escHtml(t) {
+        return String(t || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+
+    function dataPorExtenso(id) {
+        const [a, m, d] = id.split('-');
+        return `${d} de ${monthNames[parseInt(m, 10) - 1]}`;
+    }
+
+    let eventoIndexAtual = -1;
+
+    function openEventModal(i) {
+        eventoIndexAtual = i;
+        const ev = i >= 0 ? eventos[i] : { id: '', type: 'ensaio', titulo: '', hora: '', local: '', url: '' };
+        document.getElementById('ev-titulo').value = ev.titulo || '';
+        document.getElementById('ev-data').value = ev.id || '';
+        document.getElementById('ev-hora').value = (ev.hora || '').replace('h', ':');
+        document.getElementById('ev-local').value = ev.local || '';
+        document.getElementById('ev-url').value = ev.url || '';
+        document.getElementById('ev-tipo').value = ev.type || 'ensaio';
+        document.getElementById('ev-excluir').style.display = i >= 0 ? 'flex' : 'none';
+        document.getElementById('ev-modal-titulo').innerText = i >= 0 ? 'Editar Evento' : 'Novo Evento';
+        document.getElementById('event-modal').style.display = 'flex';
+        lucide.createIcons();
+    }
+
+    function saveEvent() {
+        const titulo = document.getElementById('ev-titulo').value.trim();
+        const data = document.getElementById('ev-data').value;
+        if (!titulo || !data) { alert("Preencha pelo menos o título e a data."); return; }
+
+        const novo = {
+            id: data,
+            type: document.getElementById('ev-tipo').value,
+            dataStr: dataPorExtenso(data),
+            titulo: titulo,
+            hora: document.getElementById('ev-hora').value.replace(':', 'h'),
+            local: document.getElementById('ev-local').value.trim(),
+            url: document.getElementById('ev-url').value.trim()
+        };
+
+        if (eventoIndexAtual >= 0) { eventos[eventoIndexAtual] = novo; } else { eventos.push(novo); }
+        salvarEventos();
+
+        const [a, m] = data.split('-');
+        currentYear = parseInt(a, 10);
+        currentMonth = parseInt(m, 10) - 1;
+        renderCalendar();
+        closeModal('event-modal');
+    }
+
+    function excluirEvento() {
+        if (eventoIndexAtual >= 0 && confirm("Tem certeza de que deseja excluir este evento?")) {
+            eventos.splice(eventoIndexAtual, 1);
+            salvarEventos();
+            renderCalendar();
+            closeModal('event-modal');
+        }
+    }
+
+    // --- CALENDÁRIO E EVENTOS ---
+    let currentDate = new Date(); 
+    let currentMonth = currentDate.getMonth(); 
+    let currentYear = currentDate.getFullYear();
+    const eventDate = new Date(2026, 3, 2); 
+    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+    function setupReminder() {
+        const today = new Date(); 
+        today.setHours(0,0,0,0); 
+        const eventZero = new Date(eventDate); 
+        eventZero.setHours(0,0,0,0);
+        
+        const diffDays = Math.ceil((eventZero - today) / (1000 * 60 * 60 * 24)); 
+        const reminderText = document.getElementById('reminder-days');
+        
+        if (diffDays > 1) { 
+            reminderText.innerText = `Faltam ${diffDays} dias!`; 
+        } else if (diffDays === 1) { 
+            reminderText.innerText = "É amanhã!"; 
+        } else if (diffDays === 0) { 
+            reminderText.innerText = "É HOJE!"; 
+        } else { 
+            document.getElementById('reminder-popup').style.display = 'none'; 
+        }
+    }
+
+    function closeReminder() { 
+        const popup = document.getElementById('reminder-popup'); 
+        popup.style.opacity = '0'; 
+        setTimeout(() => popup.style.display = 'none', 300); 
+    }
+
+    function renderCalendar() {
+        document.getElementById("cal-month-year").innerText = `${monthNames[currentMonth]} ${currentYear}`;
+        const daysContainer = document.getElementById("cal-days"); 
+        daysContainer.innerHTML = "";
+        
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay(); 
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        
+        for (let i = 0; i < firstDay; i++) { 
+            daysContainer.innerHTML += `<div class="cal-day empty"></div>`; 
+        }
+        
+        const today = new Date();
+        const proximosEventos = eventos;
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+            let classes = "cal-day"; 
+            if (i === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
+                classes += " today";
+            }
+            
+            let dStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+            let ev = proximosEventos.find(e => e.id === dStr); 
+            
+            if (ev) classes += " " + ev.type;
+            
+            daysContainer.innerHTML += `<div class="${classes}">${i}</div>`;
+        }
+        renderEvents(proximosEventos);
+    }
+
+    function renderEvents(lista) {
+        let eventsHtml = `<h3 style="font-size: 15px; font-weight: 800; margin: 25px 0 15px; border-top: 1px solid var(--border); padding-top: 20px;">Próximos Eventos</h3>`;
+        eventsHtml += `<div style="display: flex; flex-direction: column; gap: 12px;">`;
+
+        const ordenados = lista.map((ev, i) => ({ ev, i })).sort((a, b) => a.ev.id.localeCompare(b.ev.id));
+
+        eventsHtml += ordenados.map(({ ev, i }) => `
+            <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px;">
+                    <span style="font-size: 14px; font-weight: 800; color: var(--text);">${escHtml(ev.titulo)}</span>
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 12px; font-weight: 800; color: var(--accent);">${ev.dataStr || dataPorExtenso(ev.id)}</span>
+                        <button class="action-edit" onclick="openEventModal(${i})" title="Editar Evento" style="background: none; border: none; color: var(--text-light); cursor: pointer; display: flex; padding: 2px;"><i data-lucide="pencil" style="width: 14px; height: 14px;"></i></button>
+                    </span>
+                </div>
+                ${ev.hora ? `<div style="font-size: 12px; font-weight: 600; color: var(--text-light); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                    <i data-lucide="clock" style="width: 14px; height: 14px;"></i> ${escHtml(ev.hora)}
+                </div>` : ``}
+                ${ev.local ? `<div style="font-size: 12px; font-weight: 600; color: var(--text-light); display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                    <i data-lucide="map-pin" style="width: 14px; height: 14px;"></i> ${escHtml(ev.local)}
+                </div>` : ``}
+                ${ev.url ? `<button onclick="openLink('${ev.url}')" style="background: var(--card); color: var(--primary); border: none; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <i data-lucide="navigation" style="width: 14px; height: 14px;"></i> Ver no Mapa
+                </button>` : ``}
+            </div>
+        `).join('');
+
+        eventsHtml += `</div>`;
+        eventsHtml += `<button class="btn-secondary evento-edit-only" style="width: 100%; margin-top: 12px;" onclick="openEventModal(-1)"><i data-lucide="plus" style="width: 16px; margin-right: 6px;"></i> Adicionar Evento</button>`;
+        document.getElementById('events-container').innerHTML = eventsHtml;
+        lucide.createIcons();
+    }
+
+    function changeMonth(dir) { 
+        currentMonth += dir; 
+        if (currentMonth > 11) { 
+            currentMonth = 0; 
+            currentYear++; 
+        } else if (currentMonth < 0) { 
+            currentMonth = 11; 
+            currentYear--; 
+        } 
+        renderCalendar(); 
+    }
+
+    // Inicialização
+    (async function inicializarRepertorio() {
+        try { await migrarAnexosAntigos(); } catch (e) {}
+        renderRepertorio();
+        renderCalendar();
+        setupReminder();
+    })();
+
+    // ==========================================
+    // LÓGICA: FERRAMENTAS & TRANSPOSITOR
+    // ==========================================
+    function openFerramentas() {
+        document.getElementById('ferramentas-modal').style.display = 'flex';
+        document.getElementById('resultado-tom').innerText = "";
+        lucide.createIcons();
+    }
+
+    function fazerBuscaEmergencia(tipo) {
+        const query = document.getElementById('busca-emergencia').value;
+        if (!query) { alert("Digite o nome de uma música!"); return; }
+        
+        let url = "";
+        if (tipo === 'cifra') url = `https://www.cifraclub.com.br/?q=${encodeURIComponent(query)}`;
+        if (tipo === 'youtube') url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+        
+        window.open(url, '_blank');
+    }
+
+    function calcularNovoTom() {
+        const notasMapeadas = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const tomAtual = document.getElementById('trans-tom-atual').value;
+        const semitons = parseInt(document.getElementById('trans-semitons').value);
+
+        if (!tomAtual || isNaN(semitons)) {
+            document.getElementById('resultado-tom').innerText = "Preencha os dados!";
+            document.getElementById('resultado-tom').style.color = "var(--error)";
+            return;
+        }
+
+        let indexAtualTom = notasMapeadas.indexOf(tomAtual);
+        if (indexAtualTom === -1) return;
+
+        // Calcula o novo índice rodando o array (usando módulo)
+        let novoIndex = (indexAtualTom + semitons) % 12;
+        if (novoIndex < 0) novoIndex += 12; // Corrige se o número for negativo
+
+        const novoTom = notasMapeadas[novoIndex];
+        document.getElementById('resultado-tom').innerText = `O novo tom é: ${novoTom}`;
+        document.getElementById('resultado-tom').style.color = "var(--success)";
+    }
+
+    // ==========================================
+    // LÓGICA: CANETA VIRTUAL (DESENHO NO CANVAS)
+    // ==========================================
+    let isDrawingMode = false;
+    let isDrawing = false;
+    const canvas = document.getElementById('draw-canvas');
+    const ctx = canvas.getContext('2d');
+    let strokeColor = 'red';
+    let lastX = 0, lastY = 0;
+
+    function toggleDrawingMode() {
+        isDrawingMode = !isDrawingMode;
+        const btn = document.getElementById('btn-draw-toggle');
+        const controls = document.getElementById('draw-controls');
+        const img = document.getElementById('fullscreen-img');
+
+        if (isDrawingMode) {
+            btn.classList.add('playing'); // Fica verde/destacado
+            controls.style.display = 'block';
+            canvas.style.display = 'block';
+            
+            // Ajusta o tamanho do canvas para casar exatamente com a imagem redimensionada
+            canvas.width = img.clientWidth;
+            canvas.height = img.clientHeight;
+            
+            // Configurações da caneta
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = strokeColor;
+            
+            pararAutoScroll(); // Impede rolar enquanto desenha
+        } else {
+            btn.classList.remove('playing');
+            controls.style.display = 'none';
+            // Quando desativar, não escondemos o canvas se tiver desenho para ele não sumir antes de salvar
+        }
+    }
+
+    function changeColor(color, btnElement) {
+        strokeColor = color;
+        ctx.strokeStyle = strokeColor;
+        document.querySelectorAll('.btn-color').forEach(b => b.classList.remove('active'));
+        btnElement.classList.add('active');
+    }
+
+    // Função para pegar a posição exata do mouse/dedo em relação ao canvas
+    function getEventPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+
+    function desenharComeco(e) {
+        if (!isDrawingMode) return;
+        isDrawing = true;
+        const pos = getEventPos(e);
+        lastX = pos.x;
+        lastY = pos.y;
+    }
+
+    function desenharMovimento(e) {
+        if (!isDrawingMode || !isDrawing) return;
+        e.preventDefault(); // Impede a tela de rolar no celular enquanto desenha
+        
+        const pos = getEventPos(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+    }
+
+    function desenharFim() {
+        if (!isDrawingMode) return;
+        isDrawing = false;
+    }
+
+    // Eventos de Mouse (Computador)
+    canvas.addEventListener('mousedown', desenharComeco);
+    canvas.addEventListener('mousemove', desenharMovimento);
+    canvas.addEventListener('mouseup', desenharFim);
+    canvas.addEventListener('mouseout', desenharFim);
+
+    // Eventos de Touch (Celular/Tablet)
+    canvas.addEventListener('touchstart', desenharComeco, {passive: false});
+    canvas.addEventListener('touchmove', desenharMovimento, {passive: false});
+    canvas.addEventListener('touchend', desenharFim);
+
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function saveCanvasToImage() {
+        if (!escala[indexAtual] || ((!escala[indexAtual].foto && !escala[indexAtual].anexoId) || (escala[indexAtual].fotoTipo && !escala[indexAtual].fotoTipo.startsWith('image/')))) {
+            alert("A caneta só pode ser usada em imagens.");
+            return;
+        }
+        // Criar um canvas temporário para fundir a foto original com o rabisco
+        const img = document.getElementById('fullscreen-img');
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // Desenha a imagem de fundo
+        tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+        // Desenha os rabiscos por cima
+        tempCtx.drawImage(canvas, 0, 0);
+
+        // Salva a nova imagem combinada
+        const novaFotoBase64 = tempCanvas.toDataURL('image/jpeg', 0.8);
+        
+        // Atualiza a imagem na tela e salva o novo arquivo no IndexedDB.
+        img.src = novaFotoBase64;
+        const anexoAnterior = escala[indexAtual].anexoId || null;
+        salvarAnexoDB(novaFotoBase64, 'image/jpeg', escala[indexAtual].fotoNome || 'cifra.jpg').then(novoId => {
+            escala[indexAtual].foto = null;
+            escala[indexAtual].anexoId = novoId;
+            escala[indexAtual].fotoTipo = 'image/jpeg';
+            if (anexoAnterior) excluirAnexoDB(anexoAnterior);
+            salvarDadosLocal();
+            renderRepertorio();
+        }).catch(() => {
+            // Fallback legado apenas se o IndexedDB falhar.
+            escala[indexAtual].foto = novaFotoBase64;
+            escala[indexAtual].anexoId = null;
+            salvarDadosLocal();
+            renderRepertorio();
+        });
+        
+        alert("Anotações salvas com sucesso!");
+        clearCanvas(); // Limpa o canvas transparente pois a imagem já tem o desenho
+        toggleDrawingMode(); // Sai do modo desenho
+    }
+
+    // UPDATE: Resetar o canvas sempre que fechar a tela cheia
+    const oldCloseFullscreen = closeFullscreen;
+    closeFullscreen = function() {
+        if(isDrawingMode) toggleDrawingMode(); // desativa se tiver ativo
+        clearCanvas();
+        canvas.style.display = 'none';
+        oldCloseFullscreen();
+    };
+
+    // PWA: registra o service worker (permite instalar e usar offline)
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('sw.js').catch(function () {});
+        });
+    }
+
+</script>
+</body>
+</html>

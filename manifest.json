@@ -1,0 +1,27 @@
+{
+  "id": "./",
+  "name": "Repertório - Quinta-feira Santa",
+  "short_name": "Repertório",
+  "description": "Repertório da Missa de Lava Pés com cifras, tons e metrônomo.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

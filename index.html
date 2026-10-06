@@ -1213,6 +1213,27 @@
         @media (max-width: 768px) { .odf-page { padding: 24px 16px 30px; margin-bottom: 12px; } }
         #edit-photo-preview { width: 150px; height: 150px; }
         .cifra-thumb { width: 28px; height: 28px; }
+
+        /* ---- Modo foco: cifra ocupa a tela inteira ---- */
+        .fs-controls-top { flex-wrap: wrap; }
+        #fs-foco-bar { display: none; position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); z-index: 10001; flex-direction: column; gap: 8px; opacity: .6; transition: opacity .2s; }
+        #fs-foco-bar:hover, #fs-foco-bar:active { opacity: 1; }
+        #fs-foco-bar button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: rgba(17,24,39,.85); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+        #fullscreen-photo.fs-foco .fs-sidebar { display: none !important; }
+        #fullscreen-photo.fs-foco #fs-foco-bar { display: flex; }
+        #fullscreen-photo.fs-foco .fs-image-area { max-height: none; height: 100%; width: 100%; padding: 8px 62px 8px 8px; }
+        #fullscreen-photo.fs-foco #fullscreen-doc-viewer { width: min(100%, 1100px); padding-top: 8px; }
+        #fullscreen-photo.fs-foco .fullscreen-doc-head { display: none; }
+
+        /* ---- Convite para instalar o app (PWA) ---- */
+        #convite-instalar { position: fixed; left: 50%; top: calc(12px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -140%); z-index: 15000; width: min(94vw, 460px); background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 14px; box-shadow: 0 14px 40px rgba(0,0,0,.35); transition: transform .35s ease; box-sizing: border-box; }
+        #convite-instalar.show { transform: translate(-50%, 0); }
+        #convite-instalar .ci-topo { display: flex; align-items: center; gap: 12px; }
+        #convite-instalar img { width: 48px; height: 48px; border-radius: 12px; flex: 0 0 auto; }
+        #convite-instalar .ci-txt strong { display: block; font-size: 15px; }
+        #convite-instalar .ci-txt span { display: block; font-size: 12.5px; color: var(--text-light); margin-top: 2px; line-height: 1.4; }
+        #convite-instalar .ci-botoes { display: flex; gap: 8px; margin-top: 12px; }
+        #convite-instalar .ci-botoes button { flex: 1; padding: 11px; font-size: 14px; border-radius: 10px; cursor: pointer; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -1288,7 +1309,7 @@
         </div>
         <div class="form-group">
             <label>Link do YouTube</label>
-            <input type="url" id="edit-yt" placeholder="https://youtube.com/...">
+            <input type="url" id="edit-yt" placeholder="Deixe em branco para busca automática">
         </div>
         <div class="form-group">
             <label>Link do Cifra Club</label>
@@ -1310,6 +1331,7 @@
             <button class="fs-btn-side fs-close" onclick="closeFullscreen()" title="Fechar Cifra"><i data-lucide="x"></i></button>
             <button class="fs-btn-side fs-nav-btn" onclick="navegarCifra(1)" title="Próxima Cifra"><i data-lucide="chevron-right"></i></button>
             <button class="fs-btn-side fs-trash" style="flex: 0.5; padding: 12px 0;" onclick="removePhotoFullscreen()" title="Apagar anexo da cifra"><i data-lucide="trash-2"></i></button>
+            <button class="fs-btn-side fs-nav-btn" id="btn-foco" onclick="alternarModoFoco()" title="Ampliar cifra (ocultar painel)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
             <button class="fs-btn-side fs-nav-btn" id="btn-tela-cheia-fs" onclick="alternarTelaCheia()" title="Tela cheia"><i data-lucide="maximize" class="icon-tela-cheia-fs"></i></button>
             <button class="fs-btn-side fs-nav-btn" id="btn-draw-toggle" onclick="toggleDrawingMode()" title="Anotar na Cifra"><i data-lucide="pen-tool"></i></button>
         </div>
@@ -1350,11 +1372,18 @@
             <div class="sidebar-box" id="yt-sidebar-player">
                 <div class="yt-header"><span style="color: var(--error); display: flex;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg></span> Ouvir Música</div>
                 <iframe id="fs-yt-iframe" width="100%" height="160" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="display: none;"></iframe>
-                <div id="yt-empty-msg" class="yt-empty-msg">Nenhum vídeo do YouTube associado a esta música.</div>
+                <div id="yt-empty-msg" class="yt-empty-msg">Nenhum vídeo do YouTube associado a esta música.<br><button class="btn-secondary" style="margin-top: 8px; padding: 8px 12px; font-size: 12px; width: 100%;" onclick="buscarYoutubeAtual()">Buscar no YouTube</button></div>
             </div>
         </div>
     </div>
     
+    <div id="fs-foco-bar">
+        <button onclick="alternarModoFoco()" title="Mostrar painel"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
+        <button id="foco-play" onclick="focoAlternarRolagem()" title="Iniciar / pausar rolagem"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg></button>
+        <button onclick="navegarCifra(-1)" title="Cifra anterior"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <button onclick="navegarCifra(1)" title="Próxima cifra"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        <button onclick="closeFullscreen()" title="Fechar cifra"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
     <div class="fs-image-area" id="fs-image-container">
         <div id="canvas-wrapper">
             <img id="fullscreen-img" src="" alt="Cifra">
@@ -1479,6 +1508,7 @@
             </div>
             
             <div class="top-actions-container">
+                <button class="top-action-btn" id="btn-instalar" onclick="mostrarConviteInstalacao(true)" title="Instalar aplicativo" style="display: none;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
                 <button class="top-action-btn" id="btn-tela-cheia" onclick="alternarTelaCheia()" title="Tela cheia"><i data-lucide="maximize" id="icon-tela-cheia"></i></button>
                 <button class="top-action-btn" onclick="window.print()" title="Imprimir / PDF"><i data-lucide="printer"></i></button>
                 <button class="top-action-btn" id="btn-missa" onclick="toggleModoMissa()" title="Modo Missa (Oculta edições)"><i data-lucide="eye-off" id="icon-missa"></i></button>
@@ -1869,7 +1899,7 @@
                 ? `<button class="btn-photo-has" onclick="openFullscreen(${index})" title="Abrir anexo" style="padding: 4px;">${miniaturaAnexo}</button>`
                 : `<button class="action-add-photo" onclick="openPhotoChoiceModal(${index})" title="Adicionar Cifra"><i data-lucide="camera"></i></button>`; 
 
-            const urlCifra = m.cifraLink ? m.cifraLink : `https://www.cifraclub.com.br/?q=${encodeURIComponent(m.nome)}`;
+            const urlCifra = (m.cifraLink ? m.cifraLink : `https://www.cifraclub.com.br/?q=${encodeURIComponent(m.nome)}`).replace(/'/g, '%27');
             
             // ADICIONADO: Badge do Tom agora é clicável para emitir som!
             const badgeTom = (m.tom && m.tom.trim() !== "") ? `<span class="badge-info tom-clicavel" onclick="playTom(event, '${m.tom}')" title="Ouvir o tom de referência">${m.tom}</span>` : ``;
@@ -1888,7 +1918,7 @@
                 <div class="actions">
                     ${photoButton}
                     <button onclick="openLink('${urlCifra}')" title="Abrir no Cifra Club"><img src="${CIFRA_FONTES[0]}" data-i="0" class="cifra-logo" alt="Cifra Club" onload="cifraOk(this)" onerror="cifraErro(this)"></button>
-                    <button class="btn-youtube" onclick="openLink('${m.yt}')" title="Ouvir no YouTube">${YT_SVG(24)}</button>
+                    <button class="btn-youtube" onclick="openLink('${urlYoutube(m)}')" title="${m.yt ? 'Ouvir no YouTube' : 'Buscar no YouTube'}">${YT_SVG(24)}</button>
                     <button class="action-edit" onclick="openEditModal(${index})" title="Editar Música"><i data-lucide="pencil" style="width:18px; height:18px;"></i></button>
                 </div>
             </div>`;
@@ -2720,6 +2750,7 @@
 
     function closeFullscreen() {
         docRenderToken++;
+        document.getElementById('fullscreen-photo').classList.remove('fs-foco');
         document.getElementById('fullscreen-photo').style.display = 'none';
         document.getElementById('fullscreen-img').src = "";
         document.getElementById('canvas-wrapper').style.display = 'inline-block';
@@ -2916,6 +2947,7 @@
     function pararAutoScroll() {
         isScrolling = false; 
         cancelAnimationFrame(scrollAnimation);
+        if (typeof atualizarIconeFocoPlay === 'function') atualizarIconeFocoPlay();
         
         const btn = document.getElementById('btn-autoscroll');
         if(btn) { 
@@ -2951,10 +2983,47 @@
         document.getElementById(id).style.display = 'none'; 
     }
     
+    // Link do YouTube: usa o cadastrado; se estiver vazio, busca automática pelo nome da música
+    function urlYoutube(m) {
+        const link = (m.yt || '').trim();
+        if (/^https?:\/\//i.test(link)) return link.replace(/'/g, '%27');
+        return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(m.nome || '').replace(/'/g, '%27');
+    }
+
+    function buscarYoutubeAtual() {
+        const m = escala[indexAtual];
+        if (m) openLink(urlYoutube(m));
+    }
+
+    // Abre YouTube / Cifra Club no APLICATIVO quando ele estiver instalado
+    // (Android: intent com o pacote do app; se não houver app, cai no navegador).
+    const APPS_ANDROID = [
+        { teste: /(^|\.)(youtube\.com|youtu\.be)$/i, pacote: 'com.google.android.youtube' },
+        { teste: /(^|\.)cifraclub\.com(\.br)?$/i, pacote: 'com.studiosol.cifraclub' }
+    ];
+
+    function montarUrlParaApp(url, userAgent) {
+        const ua = userAgent || navigator.userAgent || '';
+        if (!/Android/i.test(ua)) return url;
+        let host = '';
+        try { host = new URL(url).hostname; } catch (e) { return url; }
+        const app = APPS_ANDROID.find(a => a.teste.test(host));
+        if (!app) return url;
+        const semEsquema = url.replace(/^https?:\/\//i, '').replace(/#.*$/, '');
+        return 'intent://' + semEsquema + '#Intent;scheme=https;package=' + app.pacote +
+               ';S.browser_fallback_url=' + encodeURIComponent(url) + ';end';
+    }
+
     function openLink(url) { 
         if (!url) return; 
         if (url.startsWith('http://') || url.startsWith('https://')) { 
-            window.open(url, '_blank'); 
+            const destino = montarUrlParaApp(url);
+            if (destino !== url) {
+                window.location.href = destino;   // Android: abre o app (ou o navegador, se não houver app)
+            } else {
+                // iPhone/iPad e computador: links do YouTube/Cifra Club abrem o app via link universal
+                window.open(url, '_blank');
+            }
         } else { 
             alert("O link não é válido."); 
         } 
@@ -3368,6 +3437,31 @@
         oldCloseFullscreen();
     };
 
+
+    // ==========================================
+    // MODO FOCO: esconde o painel e deixa a cifra em tela inteira
+    // ==========================================
+    function alternarModoFoco(forcar) {
+        const fs = document.getElementById('fullscreen-photo');
+        const ativar = typeof forcar === 'boolean' ? forcar : !fs.classList.contains('fs-foco');
+        if (ativar && typeof isDrawingMode !== 'undefined' && isDrawingMode) toggleDrawingMode();
+        fs.classList.toggle('fs-foco', ativar);
+        atualizarIconeFocoPlay();
+    }
+
+    function focoAlternarRolagem() {
+        toggleAutoScroll();
+        atualizarIconeFocoPlay();
+    }
+
+    function atualizarIconeFocoPlay() {
+        const b = document.getElementById('foco-play');
+        if (!b) return;
+        b.innerHTML = isScrolling
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+            : '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
+    }
+
     // ==========================================
     // TELA CHEIA (botão no topo e na tela da cifra)
     // ==========================================
@@ -3409,6 +3503,123 @@
     document.addEventListener('fullscreenchange', atualizarBotoesTelaCheia);
     document.addEventListener('webkitfullscreenchange', atualizarBotoesTelaCheia);
     atualizarBotoesTelaCheia();
+
+
+    // ==========================================
+    // CONVITE PARA INSTALAR O APLICATIVO (PWA)
+    // ==========================================
+    let eventoInstalar = null;
+    const CHAVE_CONVITE = 'repertorio_convite_instalar';
+
+    function jaInstalado() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+               window.matchMedia('(display-mode: fullscreen)').matches ||
+               window.navigator.standalone === true;
+    }
+
+    function ehIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function conviteRecusadoRecentemente() {
+        try {
+            const t = parseInt(localStorage.getItem(CHAVE_CONVITE) || '0', 10);
+            return t && (Date.now() - t) < 3 * 24 * 3600 * 1000; // pergunta de novo após 3 dias
+        } catch (e) { return false; }
+    }
+
+    function fecharConvite(lembrar) {
+        const c = document.getElementById('convite-instalar');
+        if (c) c.classList.remove('show');
+        if (lembrar) { try { localStorage.setItem(CHAVE_CONVITE, String(Date.now())); } catch (e) {} }
+    }
+
+    function mostrarConviteInstalacao(forcar) {
+        if (jaInstalado()) return;
+        if (!forcar && conviteRecusadoRecentemente()) return;
+        const ios = ehIOS();
+        if (!eventoInstalar && !ios) return;
+
+        let c = document.getElementById('convite-instalar');
+        if (!c) {
+            c = document.createElement('div');
+            c.id = 'convite-instalar';
+            document.body.appendChild(c);
+        }
+        c.innerHTML = '';
+        const topo = document.createElement('div');
+        topo.className = 'ci-topo';
+        const img = document.createElement('img');
+        img.src = 'icon-192.png'; img.alt = '';
+        const txt = document.createElement('div');
+        txt.className = 'ci-txt';
+        const st = document.createElement('strong');
+        st.textContent = 'Instalar o Repertório?';
+        const sp = document.createElement('span');
+        sp.textContent = (eventoInstalar || !ios)
+            ? 'Use como aplicativo: abre em tela cheia, mais rápido e funciona sem internet.'
+            : 'No iPhone/iPad: toque em Compartilhar (quadrado com seta) e escolha "Adicionar à Tela de Início".';
+        txt.appendChild(st); txt.appendChild(sp);
+        topo.appendChild(img); topo.appendChild(txt);
+        c.appendChild(topo);
+
+        const botoes = document.createElement('div');
+        botoes.className = 'ci-botoes';
+        if (eventoInstalar) {
+            const nao = document.createElement('button');
+            nao.className = 'btn-secondary'; nao.textContent = 'Agora não';
+            nao.onclick = () => fecharConvite(true);
+            const sim = document.createElement('button');
+            sim.className = 'btn-primary'; sim.textContent = 'Instalar';
+            sim.onclick = instalarApp;
+            botoes.appendChild(nao); botoes.appendChild(sim);
+        } else {
+            const ok = document.createElement('button');
+            ok.className = 'btn-primary'; ok.textContent = 'Entendi';
+            ok.onclick = () => fecharConvite(true);
+            botoes.appendChild(ok);
+        }
+        c.appendChild(botoes);
+        requestAnimationFrame(() => requestAnimationFrame(() => c.classList.add('show')));
+    }
+
+    async function instalarApp() {
+        if (!eventoInstalar) return;
+        const ev = eventoInstalar;
+        fecharConvite(false);
+        try {
+            ev.prompt();
+            const r = await ev.userChoice;
+            if (r && r.outcome !== 'accepted') fecharConvite(true);
+        } catch (e) {}
+        eventoInstalar = null;
+        atualizarBotaoInstalar();
+    }
+
+    function atualizarBotaoInstalar() {
+        const b = document.getElementById('btn-instalar');
+        if (b) b.style.display = (!jaInstalado() && (eventoInstalar || ehIOS())) ? 'flex' : 'none';
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();               // guarda o evento para mostrar o aviso no momento certo
+        eventoInstalar = e;
+        atualizarBotaoInstalar();
+        setTimeout(() => mostrarConviteInstalacao(false), 2500);
+    });
+
+    window.addEventListener('appinstalled', () => {
+        eventoInstalar = null;
+        fecharConvite(false);
+        atualizarBotaoInstalar();
+        try { avisarAnexo('Aplicativo instalado!'); } catch (e) {}
+    });
+
+    window.addEventListener('load', () => {
+        atualizarBotaoInstalar();
+        if (ehIOS() && !jaInstalado()) setTimeout(() => mostrarConviteInstalacao(false), 3500);
+    });
 
     // PWA: registra o service worker (permite instalar e usar offline)
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {

@@ -1,6 +1,6 @@
 // Service Worker do Repertório — permite instalar o app e usá-lo offline.
 // Ao publicar uma nova versão, mude o número abaixo (v7 -> v8) para forçar a atualização.
-const CACHE = 'repertorio-v7';
+const CACHE = 'repertorio-v11';
 
 // Tudo que o app precisa para abrir sem internet (bibliotecas ficam na pasta lib/)
 const ARQUIVOS_LOCAIS = [

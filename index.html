@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Repertório</title>
     
     <meta name="mobile-web-app-capable" content="yes">
@@ -15,22 +15,18 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Bibliotecas locais (pasta lib/): funcionam offline e não dependem de CDN -->
+    <script src="lib/lucide.min.js"></script>
     <script>
-        // Reserva: se o unpkg falhar, tenta o jsDelivr
-        if (!window.lucide) {
-            document.write('<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"><\/script>');
-        }
+        // Proteção: se o Lucide falhar, o app funciona mesmo assim (só sem alguns ícones)
+        if (!window.lucide) { window.lucide = { createIcons: function () {} }; }
     </script>
-    <script>
-        // Proteção: se nenhum carregar, o app funciona mesmo assim (só sem alguns ícones)
-        if (!window.lucide) {
-            window.lucide = { createIcons: function () {} };
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-    <script src="libs/jszip.min.js"></script>
-    
+    <script src="lib/Sortable.min.js"></script>
+    <script src="lib/jszip.min.js"></script>
+    <script src="lib/odf-reader.js"></script>
+    <script src="lib/mammoth.browser.min.js"></script>
+    <script src="lib/docToText.js"></script>
+
     <style>
         :root {
             --primary: #2563eb;
@@ -1030,18 +1026,6 @@
             gap: 4px;
         }
 
-        .edit-anexo-preview { width: 100%; min-height: 90px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
-        .edit-anexo-preview img { display: none; max-width: 100%; width: 180px; max-height: 180px; object-fit: contain; border-radius: 10px; border: 1px solid var(--border); background: #fff; }
-        .edit-file-preview-card { width: 100%; display:flex; align-items:center; gap:12px; padding:13px; border-radius:12px; background:var(--bg); border:1px solid var(--border); text-align:left; }
-        .edit-file-preview-icon { width:48px; height:48px; flex:0 0 48px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:rgba(37,99,235,.12); color:var(--primary); }
-        .edit-file-preview-meta { min-width:0; display:flex; flex-direction:column; gap:3px; }
-        .edit-file-preview-meta strong { font-size:13px; overflow-wrap:anywhere; }
-        .edit-file-preview-meta span { color:var(--text-light); font-size:11px; }
-        .anexo-mini-icon { width:30px; height:30px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; background:rgba(37,99,235,.12); color:var(--primary); font-size:9px; font-weight:800; flex-shrink:0; }
-        .pdf-page-wrap { width:100%; display:flex; justify-content:center; margin:0 auto 18px; }
-        .pdf-page-canvas { display:block; width:100%; max-width:850px; height:auto; background:#fff; box-shadow:0 6px 22px rgba(0,0,0,.12); }
-        .document-error { width:min(100%,700px); margin:30px auto; padding:25px; border-radius:16px; background:var(--card); border:1px solid var(--border); text-align:center; }
-
         /* VISUALIZADOR DE DOCUMENTOS — usa a mesma área de rolagem do acompanhamento */
         #fullscreen-doc-viewer {
             width: min(100%, 920px);
@@ -1199,11 +1183,41 @@
             }
         }
 
+
+        /* ---- Prévia de anexos ---- */
+        .attach-tile { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); text-align: left; box-sizing: border-box; }
+        .attach-ext { flex: 0 0 auto; min-width: 46px; height: 46px; padding: 0 6px; border-radius: 8px; background: var(--primary); color: #fff; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; letter-spacing: .5px; }
+        .attach-info { display: flex; flex-direction: column; min-width: 0; }
+        .attach-info strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .attach-info span { font-size: 11px; color: var(--text-light); }
+        .thumb-ext { min-width: 26px; height: 22px; padding: 0 4px; border-radius: 4px; background: var(--primary); color: #fff; font-size: 9px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; letter-spacing: .3px; }
+        .thumb-ext.pdf { background: #dc2626; }
+        #toast-anexo { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); z-index: 20000; max-width: 90vw; background: #111827; color: #fff; padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.35); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; display: flex; align-items: center; gap: 10px; }
+        #toast-anexo.show { opacity: 1; transform: translate(-50%, 0); }
+        #toast-anexo .toast-ok { color: #22c55e; font-size: 18px; line-height: 1; }
+        .photo-status.loading { color: var(--primary); }
+
+        /* ---- Documentos do LibreOffice (ODF) e PDF dentro do acompanhamento ---- */
+        .fullscreen-doc-page.pdf-mode, .fullscreen-doc-page.odf-mode { background: transparent; box-shadow: none; padding: 0; width: min(100%, 900px); }
+        .odf-page { background: #fff; color: #111827; margin: 0 auto 18px; padding: 40px 44px 46px; border-radius: 4px; box-shadow: 0 6px 24px rgba(0,0,0,.18); text-align: left; overflow-wrap: anywhere; position: relative; }
+        .odf-page p, .odf-page h1, .odf-page h2, .odf-page h3, .odf-page h4, .odf-page h5, .odf-page h6 { margin: 0 0 .6em; line-height: 1.5; }
+        .odf-page ul, .odf-page ol { margin: 0 0 .8em; padding-left: 1.6em; }
+        .odf-page .odf-page-num { margin-top: 18px; text-align: right; font-size: 11px; color: #9ca3af; font-family: sans-serif; }
+        .odf-label { display: inline-block; margin-bottom: 14px; padding: 4px 10px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font: 700 12px sans-serif; }
+        .odf-table-wrap { overflow-x: auto; margin: 0 0 1em; }
+        .odf-table { border-collapse: collapse; font-size: 14px; }
+        .odf-table td { border: 1px solid #d1d5db; padding: 4px 8px; vertical-align: top; }
+        .odf-textbox { border: 1px dashed #d1d5db; border-radius: 6px; padding: 8px 10px; margin: 8px 0; }
+        .odf-footnote { font-size: 12px; color: #4b5563; }
+        .pdf-page-canvas { display: block; width: 100%; height: auto; background: #fff; margin: 0 auto 14px; border-radius: 3px; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+        @media (max-width: 768px) { .odf-page { padding: 24px 16px 30px; margin-bottom: 12px; } }
+        #edit-photo-preview { width: 150px; height: 150px; }
+        .cifra-thumb { width: 28px; height: 28px; }
     </style>
 </head>
 <body>
 
-<input type="file" id="file-upload-gallery" accept="image/*,application/pdf,.pdf,.doc,.DOC,.docx,.DOCX,.docm,.dot,.dotx,.odt,.ODT,.fodt,.ott,.ods,.ots,.odp,.otp,.rtf,.txt,.md,.csv,.log" onchange="handleFileUpload(event)">
+<input type="file" id="file-upload-gallery" accept="image/*,application/pdf,.pdf,.doc,.docx,.docm,.dot,.dotx,.odt,.ott,.fodt,.ods,.ots,.fods,.odp,.otp,.fodp,.odg,.otg,.fodg,.sxw,.sxc,.sxi,.rtf,.txt,.md,.csv,.log,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.text-template,application/vnd.oasis.opendocument.spreadsheet,application/vnd.oasis.opendocument.spreadsheet-template,application/vnd.oasis.opendocument.presentation,application/vnd.oasis.opendocument.presentation-template,application/vnd.oasis.opendocument.graphics,application/vnd.oasis.opendocument.graphics-template,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/plain" onchange="handleFileUpload(event)">
 <input type="file" id="file-upload-camera" accept="image/*" capture="environment" onchange="handleFileUpload(event)">
 <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importarRepertorio(event)">
 
@@ -1224,15 +1238,10 @@
         <h2>Editar Música</h2>
         
         <div class="photo-edit-area">
-            <div id="edit-anexo-preview" class="edit-anexo-preview" aria-live="polite">
-                <img id="edit-photo-preview" src="" alt="Prévia da cifra">
-                <div id="edit-file-preview-card" class="edit-file-preview-card" style="display:none;">
-                    <div id="edit-file-preview-icon" class="edit-file-preview-icon"><i data-lucide="file-text"></i></div>
-                    <div class="edit-file-preview-meta">
-                        <strong id="edit-file-preview-name">Arquivo anexado</strong>
-                        <span id="edit-file-preview-type">Documento</span>
-                    </div>
-                </div>
+            <img id="edit-photo-preview" src="" alt="Cifra">
+            <div id="edit-photo-doc" class="attach-tile" style="display: none;">
+                <div class="attach-ext" id="edit-photo-ext">DOC</div>
+                <div class="attach-info"><strong id="edit-photo-name">arquivo</strong><span id="edit-photo-size"></span></div>
             </div>
             <span class="photo-status" id="edit-photo-status">Nenhum anexo</span>
             <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
@@ -1301,6 +1310,7 @@
             <button class="fs-btn-side fs-close" onclick="closeFullscreen()" title="Fechar Cifra"><i data-lucide="x"></i></button>
             <button class="fs-btn-side fs-nav-btn" onclick="navegarCifra(1)" title="Próxima Cifra"><i data-lucide="chevron-right"></i></button>
             <button class="fs-btn-side fs-trash" style="flex: 0.5; padding: 12px 0;" onclick="removePhotoFullscreen()" title="Apagar anexo da cifra"><i data-lucide="trash-2"></i></button>
+            <button class="fs-btn-side fs-nav-btn" id="btn-tela-cheia-fs" onclick="alternarTelaCheia()" title="Tela cheia"><i data-lucide="maximize" class="icon-tela-cheia-fs"></i></button>
             <button class="fs-btn-side fs-nav-btn" id="btn-draw-toggle" onclick="toggleDrawingMode()" title="Anotar na Cifra"><i data-lucide="pen-tool"></i></button>
         </div>
         
@@ -1469,6 +1479,7 @@
             </div>
             
             <div class="top-actions-container">
+                <button class="top-action-btn" id="btn-tela-cheia" onclick="alternarTelaCheia()" title="Tela cheia"><i data-lucide="maximize" id="icon-tela-cheia"></i></button>
                 <button class="top-action-btn" onclick="window.print()" title="Imprimir / PDF"><i data-lucide="printer"></i></button>
                 <button class="top-action-btn" id="btn-missa" onclick="toggleModoMissa()" title="Modo Missa (Oculta edições)"><i data-lucide="eye-off" id="icon-missa"></i></button>
                 <button class="top-action-btn" onclick="shareWhatsApp()" title="Partilhar no WhatsApp"><i data-lucide="share-2" style="color: var(--success);"></i></button>
@@ -1846,11 +1857,14 @@
             // O anexo pode estar no IndexedDB (anexoId) e, nesse caso, foto fica null.
             // O botão de abertura precisa continuar aparecendo para documentos e imagens migradas.
             const temAnexo = !!(m.foto || m.anexoId);
-            const anexoEhImagem = !!m.foto && (!m.fotoTipo || m.fotoTipo.startsWith('image/'));
-            const extVisual = obterExtensao(m.fotoNome || '').replace('.', '').toUpperCase().slice(0,4);
+            const extAnexo = extensaoDoAnexo(m);
+            const anexoEhImagem = m.fotoTipo ? m.fotoTipo.startsWith('image/') : !TIPOS_DOCUMENTOS[extAnexo];
+            const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
             const miniaturaAnexo = anexoEhImagem
-                ? `<img src="${m.foto}" class="cifra-thumb" alt="Miniatura">`
-                : `<span class="anexo-mini-icon">${extVisual || 'ARQ'}</span>`;
+                ? (m.foto
+                    ? `<img src="${m.foto}" class="cifra-thumb" alt="Miniatura">`
+                    : `<img src="${PIXEL}" data-anexo="${m.anexoId || ''}" class="cifra-thumb" alt="Miniatura">`)
+                : `<span class="thumb-ext ${extAnexo === '.pdf' ? 'pdf' : ''}">${rotuloExtensao(m.fotoNome, m.fotoTipo)}</span>`;
             const photoButton = temAnexo
                 ? `<button class="btn-photo-has" onclick="openFullscreen(${index})" title="Abrir anexo" style="padding: 4px;">${miniaturaAnexo}</button>`
                 : `<button class="action-add-photo" onclick="openPhotoChoiceModal(${index})" title="Adicionar Cifra"><i data-lucide="camera"></i></button>`; 
@@ -1885,6 +1899,26 @@
         document.getElementById('escala-fixa-container').innerHTML = html;
         lucide.createIcons();
         initDragAndDrop(); 
+        hidratarMiniaturas();
+    }
+
+    // Carrega as miniaturas das fotos guardadas no IndexedDB
+    const miniaturaUrls = [];
+    async function hidratarMiniaturas() {
+        miniaturaUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
+        const imgs = Array.from(document.querySelectorAll('img[data-anexo]'));
+        for (const img of imgs) {
+            const id = img.dataset.anexo;
+            if (!id) continue;
+            try {
+                const anexo = await obterAnexoDB(id);
+                if (anexo && anexo.blob && img.isConnected) {
+                    const u = URL.createObjectURL(anexo.blob);
+                    miniaturaUrls.push(u);
+                    img.src = u;
+                }
+            } catch (e) {}
+        }
     }
 
     function initDragAndDrop() {
@@ -1904,7 +1938,7 @@
     }
 
     function adicionarMusica() {
-        escala.push({ momento: "Novo Momento", nome: "Nova Música", tom: "", bpm: "", anotacoes: "", yt: "", cifraLink: "", foto: null, anexoId: null, fotoTipo: "", fotoNome: "" });
+        escala.push({ momento: "Novo Momento", nome: "Nova Música", tom: "", bpm: "", anotacoes: "", yt: "", cifraLink: "", foto: null });
         salvarDadosLocal(); 
         renderRepertorio(); 
         openEditModal(escala.length - 1);
@@ -1940,24 +1974,123 @@
         tempPhotoType = musica.fotoTipo || '';
         tempPhotoName = musica.fotoNome || '';
         tempAnexoId = musica.anexoId || null;
-        updateModalPhotoUI(musica.foto, musica.fotoTipo, musica.fotoNome, !!musica.anexoId);
-        document.getElementById('edit-modal').style.display = 'flex';
-        if (musica.anexoId && (musica.fotoTipo || '').startsWith('image/')) carregarPreviewAnexoExistente(musica);
+        updateModalPhotoUI();
+        
+        document.getElementById('edit-modal').style.display = 'flex'; 
         lucide.createIcons(); 
     }
 
-    function updateModalPhotoUI(photoData, fileType = '', fileName = '', anexado = false) {
-        const previewImg=document.getElementById('edit-photo-preview'), fileCard=document.getElementById('edit-file-preview-card'), status=document.getElementById('edit-photo-status'), remove=document.getElementById('edit-remove-photo');
-        const nameEl=document.getElementById('edit-file-preview-name'), typeEl=document.getElementById('edit-file-preview-type'), icon=document.getElementById('edit-file-preview-icon');
-        const tem=!!(photoData||tempAnexoId||anexado), img=!!fileType&&fileType.startsWith('image/');
-        if(tem){if(img&&photoData){previewImg.src=photoData;previewImg.style.display='block';fileCard.style.display='none';}else{previewImg.src='';previewImg.style.display='none';fileCard.style.display='flex';nameEl.textContent=fileName||'Arquivo anexado';typeEl.textContent=tipoBonitoArquivo(fileName,fileType);icon.innerHTML='<i data-lucide="file-text"></i>';lucide.createIcons();}status.innerText=fileName?'✓ '+fileName:'✓ Cifra anexada';status.className='photo-status has-photo';remove.style.display='block';}else{previewImg.src='';previewImg.style.display='none';fileCard.style.display='none';status.innerText='Nenhum anexo';status.className='photo-status';remove.style.display='none';}
+    // Prévia do anexo no modal de edição (lê o estado atual: tempAnexoId / tempPhoto*)
+    let modalPreviewUrl = null;
+    let modalPreviewToken = 0;
+
+    function liberarPreviewModal() {
+        if (modalPreviewUrl) { URL.revokeObjectURL(modalPreviewUrl); modalPreviewUrl = null; }
     }
 
-    async function saveEdit() {
-        if(indexAtual>-1){
-            escala[indexAtual].momento=document.getElementById('edit-momento').value||'Sem Momento';escala[indexAtual].nome=document.getElementById('edit-nome').value||'Música sem nome';escala[indexAtual].tom=document.getElementById('edit-tom').value.trim();escala[indexAtual].bpm=document.getElementById('edit-bpm').value.trim();escala[indexAtual].anotacoes=document.getElementById('edit-anotacoes').value.trim();escala[indexAtual].yt=document.getElementById('edit-yt').value;escala[indexAtual].cifraLink=document.getElementById('edit-cifra').value;
-            const antigo=escala[indexAtual].anexoId||null;escala[indexAtual].foto=tempPhotoBase64 || null;escala[indexAtual].anexoId=tempAnexoId||null;escala[indexAtual].fotoTipo=tempPhotoType;escala[indexAtual].fotoNome=tempPhotoName;
-            if(antigo&&antigo!==tempAnexoId)await excluirAnexoDB(antigo);salvarDadosLocal();renderRepertorio();closeModal('edit-modal');
+    async function updateModalPhotoUI() {
+        const previewImg = document.getElementById('edit-photo-preview');
+        const statusText = document.getElementById('edit-photo-status');
+        const btnRemove = document.getElementById('edit-remove-photo');
+        const docTile = document.getElementById('edit-photo-doc');
+        const token = ++modalPreviewToken;
+        const temAnexo = !!(tempAnexoId || tempPhotoBase64);
+
+        liberarPreviewModal();
+        previewImg.src = '';
+        previewImg.style.display = 'none';
+        docTile.style.display = 'none';
+
+        if (!temAnexo) {
+            statusText.innerText = 'Nenhum anexo';
+            statusText.className = 'photo-status';
+            btnRemove.style.display = 'none';
+            return;
+        }
+
+        const ehImagem = tempPhotoType
+            ? tempPhotoType.startsWith('image/')
+            : !TIPOS_DOCUMENTOS[obterExtensao(tempPhotoName)];
+        statusText.innerText = '✓ Anexo carregado' + (tempPhotoName ? ': ' + tempPhotoName : '');
+        statusText.className = 'photo-status has-photo';
+        btnRemove.style.display = 'block';
+
+        let blob = null;
+        try {
+            if (tempAnexoId) {
+                const anexo = await obterAnexoDB(tempAnexoId);
+                blob = anexo && anexo.blob ? anexo.blob : null;
+            } else if (tempPhotoBase64) {
+                blob = dataUrlParaBlob(tempPhotoBase64, tempPhotoType || 'image/jpeg');
+            }
+        } catch (e) {}
+        if (token !== modalPreviewToken) return;
+
+        if (ehImagem) {
+            if (blob) {
+                modalPreviewUrl = URL.createObjectURL(blob);
+                previewImg.src = modalPreviewUrl;
+                previewImg.style.display = 'block';
+            }
+        } else {
+            document.getElementById('edit-photo-ext').innerText = rotuloExtensao(tempPhotoName, tempPhotoType);
+            document.getElementById('edit-photo-name').innerText = tempPhotoName || 'Documento anexado';
+            document.getElementById('edit-photo-size').innerText = blob ? formatarTamanho(blob.size) : '';
+            docTile.style.display = 'flex';
+        }
+    }
+
+    // Aviso rápido (toast) para confirmar que o arquivo foi carregado
+    let toastTimer = null;
+    function avisarAnexo(msg, erro = false, duracao = 2800) {
+        let t = document.getElementById('toast-anexo');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'toast-anexo';
+            document.body.appendChild(t);
+        }
+        t.innerHTML = '';
+        const ic = document.createElement('span');
+        ic.className = 'toast-ok';
+        ic.textContent = erro ? '✕' : (duracao ? '✓' : '⏳');
+        if (erro) ic.style.color = '#ef4444';
+        const tx = document.createElement('span');
+        tx.textContent = msg;
+        t.appendChild(ic);
+        t.appendChild(tx);
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        if (duracao) toastTimer = setTimeout(() => t.classList.remove('show'), duracao);
+    }
+
+    function mostrarCarregandoAnexo(nome) {
+        avisarAnexo('Carregando ' + (nome || 'arquivo') + '…', false, 0);
+        if (photoContext === 'edit') {
+            const st = document.getElementById('edit-photo-status');
+            if (st) { st.innerText = 'Carregando ' + (nome || 'arquivo') + '…'; st.className = 'photo-status loading'; }
+        }
+    }
+
+    function saveEdit() {
+        if (indexAtual > -1) {
+            escala[indexAtual].momento = document.getElementById('edit-momento').value || "Sem Momento";
+            escala[indexAtual].nome = document.getElementById('edit-nome').value || "Música sem nome";
+            escala[indexAtual].tom = document.getElementById('edit-tom').value.trim();
+            escala[indexAtual].bpm = document.getElementById('edit-bpm').value.trim();
+            escala[indexAtual].anotacoes = document.getElementById('edit-anotacoes').value.trim();
+            escala[indexAtual].yt = document.getElementById('edit-yt').value;
+            escala[indexAtual].cifraLink = document.getElementById('edit-cifra').value;
+
+            const anexoAntigo = escala[indexAtual].anexoId || null;
+            escala[indexAtual].foto = tempAnexoId ? null : tempPhotoBase64;
+            escala[indexAtual].anexoId = tempAnexoId || null;
+            escala[indexAtual].fotoTipo = tempPhotoType;
+            escala[indexAtual].fotoNome = tempPhotoName;
+
+            if (anexoAntigo && anexoAntigo !== tempAnexoId) excluirAnexoDB(anexoAntigo);
+            salvarDadosLocal(); 
+            renderRepertorio(); 
+            closeModal('edit-modal');
         }
     }
 
@@ -1972,441 +2105,510 @@
     }
 
     // --- UPLOAD DE IMAGEM, PDF OU DOCUMENTO ---
-    const EXTENSOES_IMAGEM = ['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.avif','.heic','.heif'];
-    const TIPOS_DOCUMENTOS = {
-        '.pdf':'PDF', '.doc':'Word 97-2003', '.docx':'Word / LibreOffice', '.docm':'Word', '.dot':'Modelo Word', '.dotx':'Modelo Word',
-        '.odt':'LibreOffice Writer', '.ott':'Modelo LibreOffice Writer', '.fodt':'LibreOffice Writer', '.ods':'LibreOffice Calc', '.ots':'Modelo LibreOffice Calc',
-        '.odp':'LibreOffice Impress', '.otp':'Modelo LibreOffice Impress', '.odg':'LibreOffice Draw', '.rtf':'Rich Text Format', '.txt':'Texto', '.md':'Markdown', '.csv':'CSV', '.log':'Texto'
-    };
+    async function aplicarFoto(base64, meta = {}) {
+        const tipo = meta.type || 'image/jpeg';
+        const nome = meta.name || '';
+        let novoAnexoId = null;
 
-    function obterExtensao(nome='') {
-        const n=String(nome||'').toLowerCase();
-        const i=n.lastIndexOf('.');
-        return i>=0 ? n.slice(i) : '';
-    }
-
-    function tipoBonitoArquivo(nome='', tipo='') {
-        const ext=obterExtensao(nome);
-        return TIPOS_DOCUMENTOS[ext] || (tipo && tipo.startsWith('image/') ? 'Imagem' : 'Arquivo anexado');
-    }
-
-    function escapeHtmlDoc(value) {
-        return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    function normalizarTipoArquivo(file) {
-        const ext=obterExtensao(file?.name || '');
-        if (file?.type) return file.type;
-        const mapa={
-            '.pdf':'application/pdf','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            '.docm':'application/vnd.ms-word.document.macroEnabled.12','.dot':'application/msword','.dotx':'application/vnd.openxmlformats-officedocument.wordprocessingml.template',
-            '.odt':'application/vnd.oasis.opendocument.text','.ott':'application/vnd.oasis.opendocument.text-template','.fodt':'application/vnd.oasis.opendocument.text',
-            '.ods':'application/vnd.oasis.opendocument.spreadsheet','.ots':'application/vnd.oasis.opendocument.spreadsheet-template',
-            '.odp':'application/vnd.oasis.opendocument.presentation','.otp':'application/vnd.oasis.opendocument.presentation-template','.odg':'application/vnd.oasis.opendocument.graphics',
-            '.rtf':'application/rtf','.txt':'text/plain','.md':'text/markdown','.csv':'text/csv','.log':'text/plain'
-        };
-        return mapa[ext] || 'application/octet-stream';
-    }
-
-    async function criarPreviewImagem(file) {
-        if (!file || !String(file.type||'').startsWith('image/')) return null;
         try {
-            const dataUrl=await new Promise((resolve,reject)=>{
-                const fr=new FileReader();
-                fr.onload=()=>resolve(fr.result);
-                fr.onerror=()=>reject(fr.error);
-                fr.readAsDataURL(file);
-            });
-            return await new Promise(resolve=>{
-                const img=new Image();
-                img.onload=()=>{
-                    const max=520;
-                    const scale=Math.min(1,max/Math.max(img.naturalWidth||1,img.naturalHeight||1));
-                    const w=Math.max(1,Math.round((img.naturalWidth||1)*scale));
-                    const h=Math.max(1,Math.round((img.naturalHeight||1)*scale));
-                    const c=document.createElement('canvas'); c.width=w; c.height=h;
-                    const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
-                    resolve(c.toDataURL('image/jpeg',0.78));
-                };
-                img.onerror=()=>resolve(dataUrl);
-                img.src=dataUrl;
-            });
-        } catch(_) { return null; }
-    }
-
-    async function aplicarFoto(data, meta = {}) {
-        const tipo = meta.type || 'application/octet-stream';
-        const nome = meta.name || 'arquivo';
-        const preview = meta.preview || null;
-        let id = null;
-        try {
-            id = await salvarAnexoDB(data, tipo, nome);
-        } catch (err) {
-            if (typeof data === 'string' && tipo.startsWith('image/')) {
-                tempPhotoBase64 = data;
+            novoAnexoId = await salvarAnexoDB(base64, tipo, nome);
+        } catch (erro) {
+            // Fallback temporário para navegadores sem IndexedDB disponível.
+            if (photoContext === 'edit') {
+                tempPhotoBase64 = typeof base64 === 'string' ? base64 : null;
                 tempPhotoType = tipo;
                 tempPhotoName = nome;
                 tempAnexoId = null;
-                updateModalPhotoUI(data, tipo, nome, true);
-                return;
+                updateModalPhotoUI();
+            } else {
+                escala[indexAtual].foto = typeof base64 === 'string' ? base64 : null;
+                escala[indexAtual].anexoId = null;
+                escala[indexAtual].fotoTipo = tipo;
+                escala[indexAtual].fotoNome = nome;
+                salvarDadosLocal();
+                renderRepertorio();
+                closeModal('photo-choice-modal');
             }
-            throw err;
-        }
-
-        if (photoContext === 'edit') {
-            tempPhotoBase64 = preview;
-            tempAnexoId = id;
-            tempPhotoType = tipo;
-            tempPhotoName = nome;
-            updateModalPhotoUI(preview, tipo, nome, true);
+            avisarAnexo('Anexo carregado: ' + (nome || 'arquivo'));
             return;
         }
 
-        if (photoContext === 'direct') {
-            if (indexAtual < 0 || !escala[indexAtual]) {
-                await excluirAnexoDB(id);
-                return;
-            }
-            const antigo = escala[indexAtual].anexoId || null;
-            escala[indexAtual].foto = preview;
-            escala[indexAtual].anexoId = id;
+        if (photoContext === 'edit') {
+            tempPhotoBase64 = null;
+            tempAnexoId = novoAnexoId;
+            tempPhotoType = tipo;
+            tempPhotoName = nome;
+            updateModalPhotoUI();
+        } else if (photoContext === 'direct') {
+            const anexoAntigo = escala[indexAtual].anexoId || null;
+            escala[indexAtual].foto = null;
+            escala[indexAtual].anexoId = novoAnexoId;
             escala[indexAtual].fotoTipo = tipo;
             escala[indexAtual].fotoNome = nome;
-            if (antigo && antigo !== id) await excluirAnexoDB(antigo);
+            if (anexoAntigo) excluirAnexoDB(anexoAntigo);
             salvarDadosLocal();
             renderRepertorio();
             closeModal('photo-choice-modal');
         }
+        avisarAnexo('Anexo carregado: ' + (nome || 'arquivo'));
     }
 
-    async function removePhotoModal() {
-        if(!confirm('Tem certeza de que deseja remover o anexo?')) return;
-        const id=tempAnexoId;
-        tempPhotoBase64=null; tempPhotoType=''; tempPhotoName=''; tempAnexoId=null;
-        updateModalPhotoUI(null,'','');
-        if(id) await excluirAnexoDB(id);
+    // Leitor de PDF (pdf.js local, pasta lib/): só é carregado quando um PDF é aberto
+    function carregarPdfJs() {
+        return new Promise((resolve, reject) => {
+            if (window.pdfjsLib) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+                resolve();
+                return;
+            }
+            const sc = document.createElement('script');
+            sc.src = 'lib/pdf.min.js';
+            sc.onload = () => {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+                resolve();
+            };
+            sc.onerror = () => reject(new Error('Falha ao carregar o leitor de PDF'));
+            document.head.appendChild(sc);
+        });
+    }
+
+    async function pdfParaImagem(file) {
+        await carregarPdfJs();
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        const total = Math.min(pdf.numPages, 10); // limite de 10 páginas
+        const paginas = [];
+        let soma = 0;
+        for (let i = 1; i <= total; i++) {
+            const p = await pdf.getPage(i);
+            const v = p.getViewport({ scale: 1 });
+            paginas.push({ p, v });
+            soma += v.height / v.width;
+        }
+        // largura máxima de 900px, respeitando o limite de área do canvas no celular
+        const W = Math.floor(Math.min(900, Math.sqrt(14e6 / soma)));
+        const cv = document.createElement('canvas');
+        cv.width = W;
+        cv.height = Math.ceil(W * soma);
+        const c = cv.getContext('2d');
+        c.fillStyle = '#fff';
+        c.fillRect(0, 0, cv.width, cv.height);
+        let y = 0;
+        for (const pg of paginas) {
+            const vp = pg.p.getViewport({ scale: W / pg.v.width });
+            const tmp = document.createElement('canvas');
+            tmp.width = Math.floor(vp.width);
+            tmp.height = Math.floor(vp.height);
+            await pg.p.render({ canvasContext: tmp.getContext('2d'), viewport: vp }).promise;
+            c.drawImage(tmp, 0, y);
+            y += tmp.height;
+        }
+        return cv.toDataURL('image/jpeg', 0.75);
+    }
+
+    const TIPOS_DOCUMENTOS = {
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.docm': 'application/vnd.ms-word.document.macroEnabled.12',
+        '.dot': 'application/msword',
+        '.dotx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.template',
+        // LibreOffice / OpenDocument
+        '.odt': 'application/vnd.oasis.opendocument.text',
+        '.ott': 'application/vnd.oasis.opendocument.text-template',
+        '.fodt': 'application/vnd.oasis.opendocument.text',
+        '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+        '.ots': 'application/vnd.oasis.opendocument.spreadsheet-template',
+        '.fods': 'application/vnd.oasis.opendocument.spreadsheet',
+        '.odp': 'application/vnd.oasis.opendocument.presentation',
+        '.otp': 'application/vnd.oasis.opendocument.presentation-template',
+        '.fodp': 'application/vnd.oasis.opendocument.presentation',
+        '.odg': 'application/vnd.oasis.opendocument.graphics',
+        '.otg': 'application/vnd.oasis.opendocument.graphics-template',
+        '.fodg': 'application/vnd.oasis.opendocument.graphics',
+        '.sxw': 'application/vnd.sun.xml.writer',
+        '.sxc': 'application/vnd.sun.xml.calc',
+        '.sxi': 'application/vnd.sun.xml.impress',
+        '.rtf': 'application/rtf',
+        '.txt': 'text/plain',
+        '.md': 'text/markdown',
+        '.csv': 'text/csv',
+        '.log': 'text/plain',
+        '.pdf': 'application/pdf'
+    };
+
+    const EXT_ODF = ['.odt', '.ott', '.fodt', '.ods', '.ots', '.fods', '.odp', '.otp', '.fodp',
+                     '.odg', '.otg', '.fodg', '.sxw', '.sxc', '.sxi'];
+
+    const EXT_POR_MIME = {
+        'application/pdf': '.pdf',
+        'application/msword': '.doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+        'application/vnd.ms-word.document.macroEnabled.12': '.docm',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.template': '.dotx',
+        'application/vnd.oasis.opendocument.text': '.odt',
+        'application/vnd.oasis.opendocument.text-template': '.ott',
+        'application/vnd.oasis.opendocument.spreadsheet': '.ods',
+        'application/vnd.oasis.opendocument.spreadsheet-template': '.ots',
+        'application/vnd.oasis.opendocument.presentation': '.odp',
+        'application/vnd.oasis.opendocument.presentation-template': '.otp',
+        'application/vnd.oasis.opendocument.graphics': '.odg',
+        'application/vnd.oasis.opendocument.graphics-template': '.otg',
+        'application/rtf': '.rtf',
+        'text/rtf': '.rtf',
+        'text/plain': '.txt',
+        'text/csv': '.csv',
+        'text/markdown': '.md'
+    };
+
+    function obterExtensao(nome) {
+        const partes = String(nome || '').toLowerCase().split('.');
+        return partes.length > 1 ? `.${partes.pop()}` : '';
+    }
+
+    // Extensão real do arquivo (usa o tipo MIME quando o nome não tem extensão reconhecida)
+    function extensaoDoArquivo(file) {
+        const e = obterExtensao(file.name);
+        if (TIPOS_DOCUMENTOS[e]) return e;
+        return EXT_POR_MIME[file.type] || e;
+    }
+
+    function extensaoDoAnexo(m) {
+        const e = obterExtensao(m.fotoNome || '');
+        if (TIPOS_DOCUMENTOS[e]) return e;
+        return EXT_POR_MIME[m.fotoTipo] || e;
+    }
+
+    function ehDocumentoSuportado(file) {
+        return !!TIPOS_DOCUMENTOS[extensaoDoArquivo(file)];
+    }
+
+    function rotuloExtensao(nome, tipo) {
+        const e = TIPOS_DOCUMENTOS[obterExtensao(nome)] ? obterExtensao(nome) : (EXT_POR_MIME[tipo] || obterExtensao(nome) || '.doc');
+        return e.replace('.', '').toUpperCase().slice(0, 5);
+    }
+
+    function formatarTamanho(bytes) {
+        if (!bytes && bytes !== 0) return '';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(0) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function dataUrlParaArrayBuffer(dataUrl) {
+        const base64 = String(dataUrl).split(',')[1] || '';
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+    }
+
+    let docRenderToken = 0;
+
+    function mostrarDocumentoLoading(nome, tipo) {
+        const docViewer = document.getElementById('fullscreen-doc-viewer');
+        const content = document.getElementById('fullscreen-doc-content');
+        const native = document.getElementById('fullscreen-doc-native');
+        const fallback = document.getElementById('fullscreen-doc-fallback');
+        const loading = document.getElementById('fullscreen-doc-loading');
+        const name = document.getElementById('fullscreen-doc-name');
+        const type = document.getElementById('fullscreen-doc-type');
+        const download = document.getElementById('fullscreen-doc-download');
+
+        docRenderToken++;
+        docViewer.style.display = 'block';
+        content.style.display = 'none';
+        content.innerHTML = '';
+        content.className = 'fullscreen-doc-page';
+        native.style.display = 'none';
+        native.src = 'about:blank';
+        fallback.style.display = 'none';
+        loading.style.display = 'block';
+        name.innerText = nome || 'Documento anexado';
+        type.innerText = tipo || 'Documento';
+        download.href = '#';
+        lucide.createIcons();
+    }
+
+    function esconderDocumentoLoading() {
+        const loading = document.getElementById('fullscreen-doc-loading');
+        if (loading) loading.style.display = 'none';
+    }
+
+    // Leitor de RTF (texto): ignora tabelas de fontes/cores/figuras e converte \'xx e \uN
+    function textoRTFParaTexto(rtf) {
+        const ignorar = new Set(['fonttbl', 'colortbl', 'stylesheet', 'info', 'pict', 'object', 'header', 'footer',
+                                 'headerl', 'headerr', 'footerl', 'footerr', 'fldinst', 'listtable', 'listoverridetable',
+                                 'generator', 'themedata', 'colorschememapping', 'datastore', 'latentstyles', 'rsidtbl']);
+        let out = '', i = 0, nivel = 0, pularAte = -1, uc = 1, pularChars = 0;
+        const n = rtf.length;
+        while (i < n) {
+            const ch = rtf[i];
+            if (ch === '{') {
+                nivel++; i++;
+                if (rtf[i] === '\\' && rtf[i + 1] === '*') {
+                    if (pularAte < 0) pularAte = nivel;
+                    i += 2;
+                }
+            } else if (ch === '}') {
+                if (pularAte === nivel) pularAte = -1;
+                nivel--; i++;
+            } else if (ch === '\\') {
+                i++;
+                const c = rtf[i];
+                if (c === "'") {
+                    const hex = rtf.substr(i + 1, 2); i += 3;
+                    if (pularChars > 0) { pularChars--; continue; }
+                    if (pularAte < 0) out += String.fromCharCode(parseInt(hex, 16));
+                } else if (c === '\\' || c === '{' || c === '}') {
+                    if (pularAte < 0) out += c; i++;
+                } else if (c === '~') { if (pularAte < 0) out += '\u00a0'; i++; }
+                else if (c === '_') { if (pularAte < 0) out += '-'; i++; }
+                else if (c === '\n' || c === '\r') { if (pularAte < 0) out += '\n'; i++; }
+                else {
+                    let j = i;
+                    while (j < n && /[a-zA-Z]/.test(rtf[j])) j++;
+                    const palavra = rtf.slice(i, j);
+                    let k = j;
+                    if (rtf[k] === '-') k++;
+                    while (k < n && /[0-9]/.test(rtf[k])) k++;
+                    const param = rtf.slice(j, k);
+                    if (rtf[k] === ' ') k++;
+                    i = k;
+                    if (ignorar.has(palavra) && pularAte < 0) pularAte = nivel;
+                    if (pularAte >= 0) continue;
+                    if (palavra === 'par' || palavra === 'line' || palavra === 'row') out += '\n';
+                    else if (palavra === 'page') out += '\n\n';
+                    else if (palavra === 'tab') out += '\t';
+                    else if (palavra === 'cell') out += '\t';
+                    else if (palavra === 'emdash') out += '\u2014';
+                    else if (palavra === 'endash') out += '\u2013';
+                    else if (palavra === 'bullet') out += '\u2022';
+                    else if (palavra === 'lquote') out += '\u2018';
+                    else if (palavra === 'rquote') out += '\u2019';
+                    else if (palavra === 'ldblquote') out += '\u201c';
+                    else if (palavra === 'rdblquote') out += '\u201d';
+                    else if (palavra === 'uc') uc = parseInt(param || '1', 10);
+                    else if (palavra === 'u') {
+                        let cod = parseInt(param, 10);
+                        if (cod < 0) cod += 65536;
+                        out += String.fromCharCode(cod);
+                        pularChars = uc;
+                    }
+                }
+            } else {
+                if (pularChars > 0 && ch !== '\n' && ch !== '\r') { pularChars--; i++; continue; }
+                if (pularAte < 0 && ch !== '\n' && ch !== '\r') out += ch;
+                i++;
+            }
+        }
+        return out.replace(/\n{4,}/g, '\n\n\n').trim();
+    }
+
+    function limparLinksPerigosos(container) {
+        container.querySelectorAll('a').forEach(a => {
+            const h = (a.getAttribute('href') || '').trim().toLowerCase();
+            if (h.startsWith('javascript:') || h.startsWith('data:')) a.removeAttribute('href');
+        });
+        container.querySelectorAll('script, iframe, object, embed').forEach(el => el.remove());
+    }
+
+    async function renderizarPdfNoAcompanhamento(arrayBuffer, content) {
+        await carregarPdfJs();
+        const token = docRenderToken;
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const total = Math.min(pdf.numPages, 80);
+        content.className = 'fullscreen-doc-page pdf-mode';
+        content.style.display = 'block';
+        const larg = Math.max(300, content.getBoundingClientRect().width || 800);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        for (let i = 1; i <= total; i++) {
+            if (token !== docRenderToken) return;
+            const page = await pdf.getPage(i);
+            const v1 = page.getViewport({ scale: 1 });
+            const vp = page.getViewport({ scale: (larg * dpr) / v1.width });
+            const cv = document.createElement('canvas');
+            cv.className = 'pdf-page-canvas';
+            cv.width = Math.floor(vp.width);
+            cv.height = Math.floor(vp.height);
+            content.appendChild(cv);
+            if (i === 1) esconderDocumentoLoading();
+            await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+        }
+        if (pdf.numPages > total) {
+            const aviso = document.createElement('p');
+            aviso.style.cssText = 'text-align:center;color:#9ca3af;font-size:13px;';
+            aviso.textContent = `Mostrando as primeiras ${total} de ${pdf.numPages} páginas. Use o botão de baixar para ver o restante.`;
+            content.appendChild(aviso);
+        }
+    }
+
+    async function abrirDocumentoNoAcompanhamento(musica) {
+        const ext = extensaoDoAnexo(musica);
+        const tipo = musica.fotoTipo || TIPOS_DOCUMENTOS[ext] || 'application/octet-stream';
+        const nome = musica.fotoNome || 'Documento anexado';
+        const content = document.getElementById('fullscreen-doc-content');
+        const native = document.getElementById('fullscreen-doc-native');
+        const fallback = document.getElementById('fullscreen-doc-fallback');
+        const download = document.getElementById('fullscreen-doc-download');
+
+        mostrarDocumentoLoading(nome, tipo);
+        const token = docRenderToken;
+
+        const mostrarConteudo = () => {
+            content.style.display = 'block';
+            native.style.display = 'none';
+            fallback.style.display = 'none';
+            esconderDocumentoLoading();
+            lucide.createIcons();
+        };
+
+        try {
+            const anexo = musica.anexoId ? await obterAnexoDB(musica.anexoId) : null;
+            const blob = anexo?.blob || (musica.foto ? dataUrlParaBlob(musica.foto, tipo) : null);
+            if (!blob) throw new Error('Anexo não encontrado.');
+
+            const arrayBuffer = await blob.arrayBuffer();
+            if (token !== docRenderToken) return;
+
+            if (documentoObjectUrl) {
+                URL.revokeObjectURL(documentoObjectUrl);
+                documentoObjectUrl = null;
+            }
+            documentoObjectUrl = URL.createObjectURL(blob);
+            download.href = documentoObjectUrl;
+            download.download = nome;
+
+            // PDF: todas as páginas, uma abaixo da outra
+            if (ext === '.pdf') {
+                await renderizarPdfNoAcompanhamento(arrayBuffer, content);
+                return;
+            }
+
+            // LibreOffice / OpenDocument (texto, planilha, apresentação, desenho)
+            if (EXT_ODF.includes(ext)) {
+                const el = await OdfReader.render(arrayBuffer, ext);
+                if (token !== docRenderToken) return;
+                content.className = 'fullscreen-doc-page odf-mode';
+                content.appendChild(el);
+                mostrarConteudo();
+                return;
+            }
+
+            // DOCX / DOCM / DOTX
+            if (['.docx', '.docm', '.dotx'].includes(ext)) {
+                const resultado = await mammoth.convertToHtml({ arrayBuffer });
+                if (token !== docRenderToken) return;
+                content.innerHTML = resultado.value || '<p>O documento não possui conteúdo visualizável.</p>';
+                limparLinksPerigosos(content);
+                mostrarConteudo();
+                return;
+            }
+
+            // DOC (Word 97-2003)
+            if (ext === '.doc' || ext === '.dot') {
+                const r = window.docToText ? window.docToText.html(arrayBuffer) : null;
+                if (r && r.body) {
+                    const div = document.createElement('div');
+                    div.style.whiteSpace = 'pre-wrap';
+                    div.innerHTML = r.body;
+                    limparLinksPerigosos(div);
+                    content.appendChild(div);
+                    mostrarConteudo();
+                    return;
+                }
+                throw new Error('Não foi possível interpretar o .doc');
+            }
+
+            // RTF
+            if (ext === '.rtf') {
+                const texto = textoRTFParaTexto(new TextDecoder('latin1').decode(new Uint8Array(arrayBuffer)));
+                const pre = document.createElement('div');
+                pre.style.whiteSpace = 'pre-wrap';
+                pre.textContent = texto || 'O documento não possui conteúdo visualizável.';
+                content.appendChild(pre);
+                mostrarConteudo();
+                return;
+            }
+
+            // Texto / Markdown / CSV / LOG
+            if (['.txt', '.md', '.csv', '.log'].includes(ext)) {
+                const texto = new TextDecoder('utf-8').decode(new Uint8Array(arrayBuffer));
+                const pre = document.createElement('pre');
+                pre.textContent = texto;
+                content.appendChild(pre);
+                mostrarConteudo();
+                return;
+            }
+
+            throw new Error('Formato sem visualização');
+        } catch (erro) {
+            console.warn('Falha ao abrir documento:', erro);
+            if (token !== docRenderToken) return;
+            // Mantém o botão de baixar disponível
+            content.style.display = 'none';
+            native.style.display = 'none';
+            fallback.style.display = 'block';
+            esconderDocumentoLoading();
+            lucide.createIcons();
+        }
     }
 
     async function handleFileUpload(event) {
-        const file = event.target.files && event.target.files[0];
-        event.target.value = '';
+        const file = event.target.files[0];
         if (!file) return;
 
-        const tipo = normalizarTipoArquivo(file);
-        const nome = file.name || 'arquivo';
-        const ext = obterExtensao(nome);
-        const permitido = !!tipo.startsWith('image/') || !!TIPOS_DOCUMENTOS[ext];
-        if (!permitido) {
-            alert('Formato não suportado. Use imagens, PDF, Word (.doc/.docx) ou arquivos do LibreOffice (.odt/.ods/.odp/.fodt).');
+        document.getElementById('file-upload-camera').value = '';
+        document.getElementById('file-upload-gallery').value = '';
+
+        const ext = extensaoDoArquivo(file);
+        const ehPdf = ext === '.pdf' || file.type === 'application/pdf';
+        // Garante que o nome tenha extensão (usada depois para escolher o leitor)
+        let nomeFinal = file.name || 'arquivo';
+        if (!TIPOS_DOCUMENTOS[obterExtensao(nomeFinal)] && TIPOS_DOCUMENTOS[ext]) nomeFinal += ext;
+
+        mostrarCarregandoAnexo(nomeFinal);
+
+        // Imagens continuam sendo comprimidas para ocupar pouco espaço.
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onerror = () => { avisarAnexo('Não foi possível ler a imagem.', true); updateModalPhotoUI(); };
+            reader.onload = function(e) {
+                compressImage(e.target.result, 1200, base64 => aplicarFoto(base64, {
+                    type: 'image/jpeg',
+                    name: nomeFinal
+                }));
+            };
+            reader.readAsDataURL(file);
             return;
         }
 
-        try {
-            const preview = tipo.startsWith('image/') ? await criarPreviewImagem(file) : null;
-            await aplicarFoto(file, { type: tipo, name: nome, preview });
-        } catch (erro) {
-            console.error('Falha ao anexar arquivo:', erro);
-            alert('Não foi possível carregar este arquivo. Tente novamente.');
-        }
-    }
-
-    async function carregarPreviewAnexoExistente(musica) {
-        if (!musica || !musica.anexoId || !(musica.fotoTipo||'').startsWith('image/')) return;
-        try {
-            const registro=await obterAnexoDB(musica.anexoId);
-            if (!registro?.blob) return;
-            const preview=await criarPreviewImagem(registro.blob);
-            if (indexAtual===escala.indexOf(musica) && tempAnexoId===musica.anexoId) {
-                tempPhotoBase64=preview;
-                updateModalPhotoUI(preview, musica.fotoTipo || registro.type, musica.fotoNome || registro.name, true);
+        // PDF e documentos são guardados como arquivo original no IndexedDB.
+        if (ehPdf || ehDocumentoSuportado(file)) {
+            try {
+                await aplicarFoto(file, {
+                    type: file.type || TIPOS_DOCUMENTOS[ext] || 'application/octet-stream',
+                    name: nomeFinal
+                });
+            } catch (erro) {
+                avisarAnexo('Não foi possível salvar este documento.', true);
+                updateModalPhotoUI();
             }
-        } catch(_) {}
-    }
-
-    // --- LEITORES LOCAIS DE DOCUMENTOS ---
-    function obterMimePorExtensao(ext) {
-        const mapa={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.webp':'image/webp','.bmp':'image/bmp','.svg':'image/svg+xml','.avif':'image/avif'};
-        return mapa[ext.toLowerCase()] || 'application/octet-stream';
-    }
-
-    function parseXml(text) {
-        const doc=new DOMParser().parseFromString(text,'application/xml');
-        if (doc.querySelector('parsererror')) throw new Error('XML inválido');
-        return doc;
-    }
-
-    function xmlLocal(el){ return el?.localName || String(el?.nodeName||'').split(':').pop(); }
-    function attrLocal(el, wanted){
-        if(!el?.attributes) return '';
-        for(const a of el.attributes){ if((a.localName||a.name.split(':').pop())===wanted) return a.value; }
-        return '';
-    }
-
-    async function zipText(zip, path) {
-        const f=zip.file(path);
-        if(!f) throw new Error('Arquivo interno ausente: '+path);
-        return await f.async('text');
-    }
-
-    function normalizarCaminhoZip(path) {
-        const partes=[];
-        for(const parte of String(path||'').split('/')) {
-            if(!parte || parte==='.') continue;
-            if(parte==='..') partes.pop(); else partes.push(parte);
-        }
-        return partes.join('/');
-    }
-
-    async function zipDataUrl(zip, path) {
-        const f=zip.file(path);
-        if(!f) return null;
-        const ext=obterExtensao(path);
-        const mime=obterMimePorExtensao(ext);
-        const b64=await f.async('base64');
-        return `data:${mime};base64,${b64}`;
-    }
-
-    async function renderDocx(blob) {
-        if(!window.JSZip) throw new Error('Leitor de documentos indisponível (JSZip).');
-        const zip=await JSZip.loadAsync(blob);
-        const xml=await zipText(zip,'word/document.xml');
-        const relsXml=zip.file('word/_rels/document.xml.rels') ? await zipText(zip,'word/_rels/document.xml.rels') : '';
-        const rels={};
-        if(relsXml){ const rd=parseXml(relsXml); for(const r of rd.documentElement.children){ if(xmlLocal(r)==='Relationship') rels[attrLocal(r,'Id')]=attrLocal(r,'Target'); } }
-        const doc=parseXml(xml);
-        const body=[...doc.getElementsByTagNameNS('*','body')][0] || doc.documentElement;
-
-        async function imgFromDrawing(node){
-            const blip=node.querySelector('[localName="blip"]') || [...node.getElementsByTagName('*')].find(x=>xmlLocal(x)==='blip');
-            if(!blip) return '';
-            const rid=attrLocal(blip,'embed');
-            const target=rels[rid];
-            if(!target) return '';
-            const clean=normalizarCaminhoZip(target.replace(/^\/+/, ''));
-            const path=clean.startsWith('word/') ? clean : normalizarCaminhoZip(`word/${clean}`);
-            return await zipDataUrl(zip,path);
+            return;
         }
 
-        function runStyle(r){
-            const pr=[...r.children].find(x=>xmlLocal(x)==='rPr');
-            return {
-                bold:!!pr?.children && [...pr.children].some(x=>xmlLocal(x)==='b'),
-                italic:!!pr?.children && [...pr.children].some(x=>xmlLocal(x)==='i'),
-                underline:!!pr?.children && [...pr.children].some(x=>xmlLocal(x)==='u'),
-                strike:!!pr?.children && [...pr.children].some(x=>xmlLocal(x)==='strike')
-            };
-        }
-
-        async function renderInline(parent){
-            let out='';
-            for(const ch of parent.children){
-                const n=xmlLocal(ch);
-                if(n==='r'){
-                    const st=runStyle(ch); let txt='';
-                    for(const x of ch.children){
-                        const q=xmlLocal(x);
-                        if(q==='t') txt+=escapeHtmlDoc(x.textContent||'');
-                        else if(q==='tab') txt+='&emsp;';
-                        else if(q==='br'||q==='cr') txt+='<br>';
-                        else if(q==='drawing'||q==='pict') { const src=await imgFromDrawing(x); if(src) txt+=`<img src="${src}" alt="Imagem do documento" loading="lazy">`; }
-                    }
-                    if(st.bold) txt=`<strong>${txt}</strong>`; if(st.italic) txt=`<em>${txt}</em>`; if(st.underline) txt=`<u>${txt}</u>`; if(st.strike) txt=`<s>${txt}</s>`;
-                    out+=txt;
-                } else if(n==='hyperlink') out+=await renderInline(ch);
-                else if(n==='bookmarkStart'||n==='bookmarkEnd'||n==='proofErr'||n==='commentRangeStart'||n==='commentRangeEnd') {}
-            }
-            return out;
-        }
-
-        async function renderTable(tbl){
-            let h='<table><tbody>';
-            for(const tr of tbl.children){ if(xmlLocal(tr)!=='tr') continue; h+='<tr>'; for(const tc of tr.children){ if(xmlLocal(tc)!=='tc') continue; h+='<td>'+await renderBlockContainer(tc)+'</td>'; } h+='</tr>'; }
-            return h+'</tbody></table>';
-        }
-
-        async function renderBlockContainer(container){
-            let h='';
-            for(const el of container.children){
-                const n=xmlLocal(el);
-                if(n==='p'){
-                    const pPr=[...el.children].find(x=>xmlLocal(x)==='pPr');
-                    const ps=pPr ? [...pPr.children].find(x=>xmlLocal(x)==='pStyle') : null;
-                    const style=ps ? attrLocal(ps,'val') : '';
-                    const tag=/heading1/i.test(style)?'h1':/heading2/i.test(style)?'h2':/heading3/i.test(style)?'h3':/title/i.test(style)?'h2':'p';
-                    const inner=await renderInline(el);
-                    h+=`<${tag}>${inner || '&nbsp;'}</${tag}>`;
-                } else if(n==='tbl') h+=await renderTable(el);
-                else if(n==='sdt'){ h+=await renderBlockContainer(el); }
-            }
-            return h;
-        }
-        return await renderBlockContainer(body);
+        avisarAnexo('Formato não suportado.', true);
+        updateModalPhotoUI();
+        alert('Formato não suportado. Use imagem, PDF, DOC, DOCX, ODT/ODS/ODP (LibreOffice), RTF ou TXT.');
     }
 
-    async function renderOdf(blob, ext) {
-        let xmlText;
-        if(ext==='.fodt') xmlText=await blob.text();
-        else {
-            if(!window.JSZip) throw new Error('Leitor de documentos indisponível (JSZip).');
-            const zip=await JSZip.loadAsync(blob);
-            xmlText=await zipText(zip,'content.xml');
-            async function renderImageHref(href){
-                if(!href) return '';
-                let clean=normalizarCaminhoZip(decodeURIComponent(href).replace(/^\.\//,''));
-                return await zipDataUrl(zip,clean) || '';
-            }
-            return await renderOdfXml(xmlText, renderImageHref);
-        }
-        return await renderOdfXml(xmlText, async()=>null);
-    }
-
-    async function renderOdfXml(xmlText, imageResolver){
-        const doc=parseXml(xmlText);
-        const root=doc.documentElement;
-
-        async function renderNode(el){
-            const n=xmlLocal(el);
-            if(n==='text:p'||n==='text:h'||n==='p'||n==='h'){
-                const level=parseInt(attrLocal(el,'outline-level')||'1',10);
-                const inner=await renderChildren(el);
-                if(n.endsWith('h')) return `<h${Math.min(6,Math.max(1,level))}>${inner||'&nbsp;'}</h${Math.min(6,Math.max(1,level))}>`;
-                return `<p>${inner||'&nbsp;'}</p>`;
-            }
-            if(n==='text:span'||n==='span') return `<span>${await renderChildren(el)}</span>`;
-            if(n==='text:list'||n==='list'){ let h='<ul>'; for(const item of el.children){ if(xmlLocal(item)==='list-item') h+=`<li>${await renderChildren(item)}</li>`; } return h+'</ul>'; }
-            if(n==='table') return await renderTableOdf(el);
-            if(n==='text:s'||n==='s') { const c=parseInt(attrLocal(el,'c')||'1',10); return '&nbsp;'.repeat(Math.min(c,20)); }
-            if(n==='text:tab'||n==='tab') return '&emsp;';
-            if(n==='text:line-break'||n==='line-break') return '<br>';
-            if(n==='draw:image'||n==='image'){ const href=attrLocal(el,'href') || attrLocal(el,'xlink:href'); const src=await imageResolver(href); return src?`<img src="${src}" alt="Imagem do documento" loading="lazy">`:''; }
-            return await renderChildren(el);
-        }
-        async function renderChildren(el){ let h=''; for(const child of el.childNodes){ if(child.nodeType===3){ h+=escapeHtmlDoc(child.nodeValue); } else if(child.nodeType===1){ h+=await renderNode(child); } } return h; }
-        async function renderTableOdf(table){
-            let h='<table><tbody>';
-            for(const row of table.children){ if(xmlLocal(row)!=='table-row') continue; h+='<tr>'; for(const cell of row.children){ if(xmlLocal(cell)!=='table-cell') continue; h+=`<td>${await renderChildren(cell)}</td>`; } h+='</tr>'; }
-            return h+'</tbody></table>';
-        }
-        const body=[...root.getElementsByTagName('*')].find(x=>xmlLocal(x)==='text' || xmlLocal(x)==='body') || root;
-        return await renderChildren(body);
-    }
-
-    async function renderRtf(blob) {
-        const text=await blob.text();
-        let out='', ignore=0, uc=1;
-        for(let i=0;i<text.length;i++){
-            const ch=text[i];
-            if(ch==='{'||ch==='}') { if(ch==='{') ignore++; else ignore=Math.max(0,ignore-1); continue; }
-            if(ch==='\\'){
-                let j=i+1; if(j>=text.length) break;
-                if(text[j]==='\'' && /^[0-9a-fA-F]{2}$/.test(text.slice(j+1,j+3))){ out+=String.fromCharCode(parseInt(text.slice(j+1,j+3),16)); i=j+2; continue; }
-                const m=text.slice(j).match(/^([a-zA-Z]+)(-?\d+)? ?/);
-                if(m){ const cmd=m[1].toLowerCase(); i=j+m[0].length-1;
-                    if(cmd==='par'||cmd==='line'||cmd==='row') out+='\n'; else if(cmd==='tab') out+='\t'; else if(cmd==='u'){ /* unicode handled minimally */ }
-                    continue; }
-                i=j; continue;
-            }
-            if(ignore===0) out+=ch;
-        }
-        return `<pre>${escapeHtmlDoc(out.replace(/\r\n/g,'\n'))}</pre>`;
-    }
-
-    async function renderTextLike(blob, ext) {
-        const text=await blob.text();
-        return `<pre>${escapeHtmlDoc(text.replace(/\r\n/g,'\n'))}</pre>`;
-    }
-
-    function mostrarDocumentoErro(mensagem){
-        const loading=document.getElementById('fullscreen-doc-loading');
-        const fallback=document.getElementById('fullscreen-doc-fallback');
-        const p=fallback.querySelector('p');
-        if(loading) loading.style.display='none';
-        if(p) p.textContent=mensagem;
-        fallback.style.display='block';
-        document.getElementById('fullscreen-doc-content').style.display='none';
-        document.getElementById('fullscreen-doc-native').style.display='none';
-    }
-
-    async function carregarLeitorDoc(){
-        if(window.docToText) return true;
-        const urls=[
-            'https://raw.githubusercontent.com/Alpaq92/JSDoc/refs/heads/main/src/docToText.js',
-            'https://alpaq92.github.io/JSDoc/src/docToText.js'
-        ];
-        for(const src of urls){
-            try{ await new Promise((resolve,reject)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>resolve(); s.onerror=()=>reject(new Error('load')); document.head.appendChild(s); }); if(window.docToText) return true; }catch(_){}
-        }
-        return false;
-    }
-
-    async function renderLegacyDoc(blob){
-        const ok=await carregarLeitorDoc();
-        if(!ok || !window.docToText) throw new Error('Leitor de DOC indisponível.');
-        const buf=await blob.arrayBuffer();
-        let result=null;
-        if(typeof window.docToText.html==='function') result=window.docToText.html(buf);
-        if(result && typeof result==='object' && result.body) return result.body;
-        const text=window.docToText(buf);
-        if(text==null) throw new Error('Este .doc está protegido, corrompido ou não é compatível.');
-        return `<pre>${escapeHtmlDoc(text)}</pre>`;
-    }
-
-    async function abrirPdfNoAcompanhamento(blob, content, loading){
-        await carregarPdfJs();
-        const pdf=await pdfjsLib.getDocument({data:await blob.arrayBuffer()}).promise;
-        content.innerHTML='';
-        for(let i=1;i<=pdf.numPages;i++){
-            const page=await pdf.getPage(i);
-            const base=page.getViewport({scale:1.25});
-            const maxW=Math.min(850, Math.max(360, content.clientWidth||850));
-            const scale=maxW/base.width;
-            const viewport=page.getViewport({scale});
-            const wrap=document.createElement('div'); wrap.className='pdf-page-wrap';
-            const canvas=document.createElement('canvas'); canvas.className='pdf-page-canvas';
-            canvas.width=Math.floor(viewport.width); canvas.height=Math.floor(viewport.height);
-            wrap.appendChild(canvas); content.appendChild(wrap);
-            await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
-        }
-        loading.style.display='none'; content.style.display='block';
-    }
-
-    async function abrirDocumentoNoAcompanhamento(musica, blob){
-        const content=document.getElementById('fullscreen-doc-content');
-        const loading=document.getElementById('fullscreen-doc-loading');
-        const native=document.getElementById('fullscreen-doc-native');
-        const fallback=document.getElementById('fullscreen-doc-fallback');
-        const nameEl=document.getElementById('fullscreen-doc-name');
-        const typeEl=document.getElementById('fullscreen-doc-type');
-        const download=document.getElementById('fullscreen-doc-download');
-        const nome=musica.fotoNome || 'Documento anexado';
-        const tipo=musica.fotoTipo || blob?.type || normalizarTipoArquivo({name:nome,type:''});
-        const ext=obterExtensao(nome);
-        if(!blob) throw new Error('Arquivo não encontrado no armazenamento.');
-
-        nameEl.textContent=nome;
-        typeEl.textContent=tipoBonitoArquivo(nome,tipo);
-        if(documentoObjectUrl) URL.revokeObjectURL(documentoObjectUrl);
-        documentoObjectUrl=URL.createObjectURL(blob);
-        download.href=documentoObjectUrl;
-        download.download=nome;
-        fallback.style.display='none'; native.style.display='none'; content.style.display='none'; loading.style.display='block';
-
-        if(ext==='.pdf' || tipo==='application/pdf'){
-            await abrirPdfNoAcompanhamento(blob,content,loading); return;
-        }
-        let html='';
-        if(['.docx','.docm','.dotx'].includes(ext) || /wordprocessingml/.test(tipo)) html=await renderDocx(blob);
-        else if(['.odt','.ott','.fodt'].includes(ext) || /opendocument\.text/.test(tipo)) html=await renderOdf(blob,ext);
-        else if(['.ods','.ots','.odp','.otp','.odg'].includes(ext) || /opendocument/.test(tipo)) html=await renderOdf(blob,ext);
-        else if(ext==='.doc' || tipo==='application/msword') html=await renderLegacyDoc(blob);
-        else if(ext==='.rtf' || tipo==='application/rtf') html=await renderRtf(blob);
-        else if(['.txt','.md','.csv','.log'].includes(ext) || tipo.startsWith('text/')) html=await renderTextLike(blob,ext);
-        else {
-            // Última tentativa: o próprio navegador pode renderizar este tipo em um iframe.
-            native.src=documentoObjectUrl; native.style.display='block'; loading.style.display='none'; return;
-        }
-        content.innerHTML=html || '<p>Nenhum conteúdo legível encontrado neste arquivo.</p>';
-        loading.style.display='none'; content.style.display='block';
+    function removePhotoModal() { 
+        if (confirm("Tem certeza de que deseja remover a foto?")) { 
+            tempPhotoBase64 = null;
+            tempPhotoType = '';
+            tempPhotoName = '';
+            tempAnexoId = null;
+            updateModalPhotoUI(); 
+        } 
     }
 
     function getYouTubeEmbedUrl(url) {
@@ -2451,16 +2653,16 @@
     async function openFullscreen(index) {
         indexAtual = index;
         const musica = escala[index];
+
         if (!musica || (!musica.foto && !musica.anexoId)) return;
 
-        const fs = document.getElementById('fullscreen-photo');
-        const area = document.getElementById('fs-image-container');
-        const img = document.getElementById('fullscreen-img');
-        const wrapper = document.getElementById('canvas-wrapper');
+        const ext = extensaoDoAnexo(musica);
+        const tipoAnexo = musica.fotoTipo || '';
+        const ehImagem = tipoAnexo ? tipoAnexo.startsWith('image/') : !TIPOS_DOCUMENTOS[ext];
+        const ehDocumento = !ehImagem;
+        const fullscreenImg = document.getElementById('fullscreen-img');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
         const docViewer = document.getElementById('fullscreen-doc-viewer');
-        const content = document.getElementById('fullscreen-doc-content');
-        const native = document.getElementById('fullscreen-doc-native');
-        const fallback = document.getElementById('fullscreen-doc-fallback');
         const drawToggle = document.getElementById('btn-draw-toggle');
 
         if (documentoObjectUrl) {
@@ -2468,68 +2670,42 @@
             documentoObjectUrl = null;
         }
 
-        fs.style.display = 'flex';
-        area.scrollTop = 0;
+        document.getElementById('fullscreen-photo').style.display = 'flex';
+        document.getElementById('fs-image-container').scrollTop = 0;
         scrollAccumulator = 0;
         pararAutoScroll();
         pararMetronomo();
         solicitarWakeLock();
         document.getElementById('manual-bpm-input').value = musica.bpm || '';
 
-        img.src = '';
-        img.style.display = 'block';
-        wrapper.style.display = 'inline-block';
-        docViewer.style.display = 'none';
-        content.style.display = 'none';
-        content.innerHTML = '';
-        native.src = 'about:blank';
-        native.style.display = 'none';
-        fallback.style.display = 'none';
-        document.getElementById('fullscreen-doc-loading').style.display = 'none';
-        drawToggle.style.display = 'flex';
-
-        try {
-            let blob = null;
-            let tipo = musica.fotoTipo || '';
-            let nome = musica.fotoNome || '';
-
+        if (ehDocumento) {
+            fullscreenImg.src = '';
+            canvasWrapper.style.display = 'none';
+            docViewer.style.display = 'block';
+            drawToggle.style.display = 'none';
+            await abrirDocumentoNoAcompanhamento(musica);
+        } else {
             if (musica.anexoId) {
-                const registro = await obterAnexoDB(musica.anexoId);
-                if (!registro || !registro.blob) throw new Error('Anexo não encontrado no IndexedDB.');
-                blob = registro.blob;
-                tipo = registro.type || tipo || blob.type || '';
-                nome = registro.name || nome;
-            }
-
-            const ext = obterExtensao(nome);
-            const ehImagem = tipo.startsWith('image/') || EXTENSOES_IMAGEM.includes(ext) || (!!musica.foto && !TIPOS_DOCUMENTOS[ext]);
-
-            if (ehImagem) {
-                if (blob) {
-                    documentoObjectUrl = URL.createObjectURL(blob);
-                    img.src = documentoObjectUrl;
-                } else {
-                    img.src = musica.foto;
+                const anexo = await obterAnexoDB(musica.anexoId);
+                if (!anexo || !anexo.blob) {
+                    closeFullscreen();
+                    alert('Não foi possível abrir o anexo desta cifra.');
+                    return;
                 }
-                wrapper.style.display = 'inline-block';
-                img.style.display = 'block';
-                docViewer.style.display = 'none';
-                drawToggle.style.display = 'flex';
+                documentoObjectUrl = URL.createObjectURL(anexo.blob);
+                fullscreenImg.src = documentoObjectUrl;
             } else {
-                wrapper.style.display = 'none';
-                img.style.display = 'none';
-                docViewer.style.display = 'block';
-                drawToggle.style.display = 'none';
-                await abrirDocumentoNoAcompanhamento({ ...musica, fotoNome: nome, fotoTipo: tipo }, blob);
+                fullscreenImg.src = musica.foto;
             }
-        } catch (erro) {
-            console.error('Falha ao abrir anexo:', erro);
-            mostrarDocumentoErro('Não foi possível abrir o arquivo. O anexo continua salvo e pode ser baixado pelo botão azul.');
+            canvasWrapper.style.display = 'inline-block';
+            docViewer.style.display = 'none';
+            drawToggle.style.display = 'flex';
         }
 
         const ytEmbedUrl = getYouTubeEmbedUrl(musica.yt);
         const ytIframe = document.getElementById('fs-yt-iframe');
         const ytEmpty = document.getElementById('yt-empty-msg');
+
         if (ytEmbedUrl) {
             ytIframe.src = ytEmbedUrl;
             ytIframe.style.display = 'block';
@@ -2543,6 +2719,7 @@
     }
 
     function closeFullscreen() {
+        docRenderToken++;
         document.getElementById('fullscreen-photo').style.display = 'none';
         document.getElementById('fullscreen-img').src = "";
         document.getElementById('canvas-wrapper').style.display = 'inline-block';
@@ -2770,12 +2947,8 @@
         };
     }
 
-    function closeModal(id) {
-        document.getElementById(id).style.display = 'none';
-        if (id === 'edit-modal') {
-            const img = document.getElementById('edit-photo-preview');
-            if (img && img.src && img.src.startsWith('blob:')) { URL.revokeObjectURL(img.src); img.src = ''; }
-        }
+    function closeModal(id) { 
+        document.getElementById(id).style.display = 'none'; 
     }
     
     function openLink(url) { 
@@ -3195,10 +3368,54 @@
         oldCloseFullscreen();
     };
 
+    // ==========================================
+    // TELA CHEIA (botão no topo e na tela da cifra)
+    // ==========================================
+    const SVG_TELA_CHEIA = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+    const SVG_SAIR_TELA_CHEIA = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>';
+
+    function telaCheiaAtiva() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    }
+
+    function atualizarBotoesTelaCheia() {
+        const ativa = telaCheiaAtiva();
+        ['btn-tela-cheia', 'btn-tela-cheia-fs'].forEach(id => {
+            const b = document.getElementById(id);
+            if (!b) return;
+            b.innerHTML = ativa ? SVG_SAIR_TELA_CHEIA : SVG_TELA_CHEIA;
+            b.title = ativa ? 'Sair da tela cheia' : 'Tela cheia';
+        });
+    }
+
+    function alternarTelaCheia() {
+        const el = document.documentElement;
+        const abrir = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        const sair = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+        if (!abrir) {
+            alert('Este navegador (iPhone/iPad) não permite tela cheia por botão. Toque em Compartilhar › "Adicionar à Tela de Início" e abra o Repertório pelo ícone: ele abre em tela cheia, sem as barras do navegador.');
+            return;
+        }
+        try {
+            if (telaCheiaAtiva()) {
+                sair.call(document);
+            } else {
+                const p = abrir.call(el, { navigationUI: 'hide' });
+                if (p && p.catch) p.catch(() => {});
+            }
+        } catch (e) {}
+    }
+
+    document.addEventListener('fullscreenchange', atualizarBotoesTelaCheia);
+    document.addEventListener('webkitfullscreenchange', atualizarBotoesTelaCheia);
+    atualizarBotoesTelaCheia();
+
     // PWA: registra o service worker (permite instalar e usar offline)
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
         window.addEventListener('load', function () {
-            navigator.serviceWorker.register('sw.js').catch(function () {});
+            navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+                try { reg.update(); } catch (e) {}
+            }).catch(function (err) { console.warn('Service worker:', err); });
         });
     }
 
